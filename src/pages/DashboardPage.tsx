@@ -103,11 +103,17 @@ export default function DashboardPage() {
     if (!container) return;
 
     const today = new Date();
-    let html = '<div style="display: flex; gap: 8px; align-items: flex-start; overflow-x: auto; padding: 10px 0;">';
+    
+    // Create main grid container
+    let html = `
+      <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; overflow-x: auto;">
+        <!-- Heatmap Grid -->
+        <div style="display: flex; gap: 6px; align-items: flex-start;">
+    `;
 
     // 12 weeks (columns)
     for (let week = 0; week < 12; week++) {
-      html += '<div style="display: flex; flex-direction: column; gap: 3px;">';
+      html += '<div style="display: flex; flex-direction: column; gap: 4px;">';
 
       // 7 days (rows)
       for (let day = 0; day < 7; day++) {
@@ -117,35 +123,45 @@ export default function DashboardPage() {
         const count = data[key] || 0;
 
         let bgColor = '';
+        let opacity = '';
+        
         if (count === 0) {
-          bgColor = '#2a2a2a';
+          bgColor = '#0d1117';
+          opacity = '0.4';
         } else if (count === 1) {
-          bgColor = '#3b35c8';
+          bgColor = '#0e4429';
+          opacity = '1';
         } else if (count <= 2) {
-          bgColor = '#4f46e5';
+          bgColor = '#006d32';
+          opacity = '1';
         } else if (count <= 4) {
-          bgColor = '#4338ca';
+          bgColor = '#26a641';
+          opacity = '1';
         } else {
-          bgColor = '#3730a3';
+          bgColor = '#39d353';
+          opacity = '1';
         }
 
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const tooltip = `${dayNames[date.getDay()]} ${date.toLocaleDateString()}: ${count} game${count !== 1 ? 's' : ''}`;
 
-        html += `<div 
-          style="
-            width: 16px; 
-            height: 16px; 
-            background-color: ${bgColor}; 
-            border-radius: 3px; 
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid rgba(255,255,255,0.15);
-          "
-          title="${tooltip}"
-          onmouseover="this.style.opacity='0.7'; this.style.transform='scale(1.1)';"
-          onmouseout="this.style.opacity='1'; this.style.transform='scale(1)';"
-        />`;
+        html += `
+          <div 
+            style="
+              width: 18px; 
+              height: 18px; 
+              background-color: ${bgColor}; 
+              border-radius: 3px; 
+              cursor: pointer;
+              border: 1px solid rgba(255,255,255,0.1);
+              opacity: ${opacity};
+              transition: all 0.2s;
+            "
+            title="${tooltip}"
+            onmouseover="this.style.transform='scale(1.15)'; this.style.boxShadow='0 0 10px rgba(57, 211, 83, 0.5)';"
+            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
+          />
+        `;
       }
 
       html += '</div>';
@@ -153,38 +169,28 @@ export default function DashboardPage() {
 
     html += '</div>';
 
-    // Add month labels below
-    html += '<div style="display: flex; gap: 8px; margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.4); overflow-x: auto;">';
+    // Month labels
+    html += '<div style="display: flex; gap: 6px; margin-left: 0; font-size: 12px; color: rgba(255,255,255,0.4);">';
     const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
     for (let i = 0; i < 12; i++) {
-      html += `<div style="width: 16px; text-align: center; flex-shrink: 0;">${months[i]}</div>`;
+      html += `<div style="width: 18px; text-align: center;">${months[i]}</div>`;
     }
     html += '</div>';
 
-    // Add legend
+    // Legend
     html += `
-      <div style="margin-top: 20px; display: flex; gap: 16px; align-items: center; font-size: 12px; flex-wrap: wrap;">
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <div style="width: 16px; height: 16px; background-color: #2a2a2a; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15);"></div>
-          <span style="color: rgba(255,255,255,0.5);">No activity</span>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <div style="width: 16px; height: 16px; background-color: #3b35c8; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15);"></div>
-          <span style="color: rgba(255,255,255,0.5);">1 game</span>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <div style="width: 16px; height: 16px; background-color: #4f46e5; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15);"></div>
-          <span style="color: rgba(255,255,255,0.5);">2 games</span>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <div style="width: 16px; height: 16px; background-color: #4338ca; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15);"></div>
-          <span style="color: rgba(255,255,255,0.5);">3-4 games</span>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <div style="width: 16px; height: 16px; background-color: #3730a3; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15);"></div>
-          <span style="color: rgba(255,255,255,0.5);">5+ games</span>
-        </div>
+      <div style="display: flex; gap: 12px; align-items: center; font-size: 12px; margin-top: 8px; flex-wrap: wrap;">
+        <span style="color: rgba(255,255,255,0.5);">Less</span>
+        
+        <div style="width: 18px; height: 18px; background-color: #0d1117; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); opacity: 0.4;"></div>
+        <div style="width: 18px; height: 18px; background-color: #0e4429; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 18px; height: 18px; background-color: #006d32; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 18px; height: 18px; background-color: #26a641; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 18px; height: 18px; background-color: #39d353; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
+        
+        <span style="color: rgba(255,255,255,0.5);">More</span>
       </div>
+    </div>
     `;
 
     container.innerHTML = html;
