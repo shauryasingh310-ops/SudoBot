@@ -103,17 +103,20 @@ export default function DashboardPage() {
     if (!container) return;
 
     const today = new Date();
-    
-    // Create main grid container
-    let html = `
-      <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; overflow-x: auto;">
-        <!-- Heatmap Grid -->
-        <div style="display: flex; gap: 6px; align-items: flex-start;">
-    `;
+    container.innerHTML = ''; // Clear container
+
+    // Create wrapper
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+    // Create grid
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display: flex; gap: 4px; align-items: flex-start; flex-wrap: wrap; max-width: 100%;';
 
     // 12 weeks (columns)
     for (let week = 0; week < 12; week++) {
-      html += '<div style="display: flex; flex-direction: column; gap: 4px;">';
+      const weekCol = document.createElement('div');
+      weekCol.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
 
       // 7 days (rows)
       for (let day = 0; day < 7; day++) {
@@ -122,78 +125,75 @@ export default function DashboardPage() {
         const key = date.toISOString().split('T')[0];
         const count = data[key] || 0;
 
-        let bgColor = '';
-        let opacity = '';
-        
+        const box = document.createElement('div');
+        box.style.width = '14px';
+        box.style.height = '14px';
+        box.style.borderRadius = '2px';
+        box.style.border = '1px solid rgba(255,255,255,0.1)';
+        box.style.cursor = 'pointer';
+        box.style.transition = 'all 0.2s ease';
+
+        // GitHub green colors
         if (count === 0) {
-          bgColor = '#0d1117';
-          opacity = '0.4';
+          box.style.backgroundColor = '#0d1117';
         } else if (count === 1) {
-          bgColor = '#0e4429';
-          opacity = '1';
+          box.style.backgroundColor = '#0e4429';
         } else if (count <= 2) {
-          bgColor = '#006d32';
-          opacity = '1';
+          box.style.backgroundColor = '#006d32';
         } else if (count <= 4) {
-          bgColor = '#26a641';
-          opacity = '1';
+          box.style.backgroundColor = '#26a641';
         } else {
-          bgColor = '#39d353';
-          opacity = '1';
+          box.style.backgroundColor = '#39d353';
         }
 
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const tooltip = `${dayNames[date.getDay()]} ${date.toLocaleDateString()}: ${count} game${count !== 1 ? 's' : ''}`;
+        box.title = `${dayNames[date.getDay()]} ${date.toLocaleDateString()}: ${count} game${count !== 1 ? 's' : ''}`;
 
-        html += `
-          <div 
-            style="
-              width: 18px; 
-              height: 18px; 
-              background-color: ${bgColor}; 
-              border-radius: 3px; 
-              cursor: pointer;
-              border: 1px solid rgba(255,255,255,0.1);
-              opacity: ${opacity};
-              transition: all 0.2s;
-            "
-            title="${tooltip}"
-            onmouseover="this.style.transform='scale(1.15)'; this.style.boxShadow='0 0 10px rgba(57, 211, 83, 0.5)';"
-            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
-          />
-        `;
+        box.addEventListener('mouseenter', () => {
+          box.style.transform = 'scale(1.3)';
+          box.style.boxShadow = '0 0 8px rgba(57, 211, 83, 0.6)';
+        });
+
+        box.addEventListener('mouseleave', () => {
+          box.style.transform = 'scale(1)';
+          box.style.boxShadow = 'none';
+        });
+
+        weekCol.appendChild(box);
       }
 
-      html += '</div>';
+      grid.appendChild(weekCol);
     }
 
-    html += '</div>';
+    wrapper.appendChild(grid);
 
-    // Month labels
-    html += '<div style="display: flex; gap: 6px; margin-left: 0; font-size: 12px; color: rgba(255,255,255,0.4);">';
+    // Add month labels
+    const monthLabels = document.createElement('div');
+    monthLabels.style.cssText = 'display: flex; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px;';
     const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-    for (let i = 0; i < 12; i++) {
-      html += `<div style="width: 18px; text-align: center;">${months[i]}</div>`;
-    }
-    html += '</div>';
+    months.forEach(month => {
+      const label = document.createElement('div');
+      label.textContent = month;
+      label.style.cssText = 'width: 14px; text-align: center; font-weight: 500;';
+      monthLabels.appendChild(label);
+    });
+    wrapper.appendChild(monthLabels);
 
-    // Legend
-    html += `
-      <div style="display: flex; gap: 12px; align-items: center; font-size: 12px; margin-top: 8px; flex-wrap: wrap;">
-        <span style="color: rgba(255,255,255,0.5);">Less</span>
-        
-        <div style="width: 18px; height: 18px; background-color: #0d1117; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); opacity: 0.4;"></div>
-        <div style="width: 18px; height: 18px; background-color: #0e4429; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
-        <div style="width: 18px; height: 18px; background-color: #006d32; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
-        <div style="width: 18px; height: 18px; background-color: #26a641; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
-        <div style="width: 18px; height: 18px; background-color: #39d353; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);"></div>
-        
-        <span style="color: rgba(255,255,255,0.5);">More</span>
-      </div>
-    </div>
+    // Add legend
+    const legend = document.createElement('div');
+    legend.style.cssText = 'display: flex; gap: 8px; align-items: center; font-size: 11px; margin-top: 8px; flex-wrap: wrap;';
+    legend.innerHTML = `
+      <span style="color: rgba(255,255,255,0.5);">Less</span>
+      <div style="width: 14px; height: 14px; background-color: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
+      <div style="width: 14px; height: 14px; background-color: #0e4429; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
+      <div style="width: 14px; height: 14px; background-color: #006d32; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
+      <div style="width: 14px; height: 14px; background-color: #26a641; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
+      <div style="width: 14px; height: 14px; background-color: #39d353; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
+      <span style="color: rgba(255,255,255,0.5);">More</span>
     `;
+    wrapper.appendChild(legend);
 
-    container.innerHTML = html;
+    container.appendChild(wrapper);
   };
 
   const createProgressChart = (ratingHistory: any[] = []) => {
