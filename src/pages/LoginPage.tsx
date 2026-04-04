@@ -58,7 +58,22 @@ export default function LoginPage() {
       setSuccessOverlay(true);
       setTimeout(() => navigate('/game'), 1500);
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      // Map Firebase error codes to user-friendly messages
+      let errorMessage = 'Authentication failed';
+      
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errorMessage = 'Invalid Email or Password';
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email already in use';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Try again later';
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -71,7 +86,9 @@ export default function LoginPage() {
       setSuccessOverlay(true);
       setTimeout(() => navigate('/game'), 1500);
     } catch (err: any) {
-      setError(err.message || 'Google sign-in failed');
+      if (err.code !== 'auth/cancelled-popup-request' && err.code !== 'auth/popup-closed-by-user') {
+        setError('Google sign-in failed');
+      }
     }
   };
 
