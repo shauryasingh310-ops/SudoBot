@@ -422,26 +422,22 @@ export default function GamePage() {
     );
     setGrid(newGrid);
 
-    // Check if solved
-    if (newGrid.every((row: number[]) => row.every((cell: number) => cell !== 0))) {
-      const isAllValid = newGrid.every((row: number[], ri: number) => 
-        row.every((cell: number, ci: number) => {
-          const temp = newGrid[ri][ci];
-          newGrid[ri][ci] = 0;
-          const v = isValid(newGrid, ri, ci, temp, sudokuSize);
-          newGrid[ri][ci] = temp;
-          return v;
-        })
-      );
-      if (isAllValid) {
-        console.log(`✅ Grid solved! Size: ${sudokuSize}×${sudokuSize}`);
-        setIsTimerActive(false);
-        setGameCompleted(true);
-        
-        // Save stats to Firestore if user is logged in
-        if (userId) {
-          updateUserStats(userId, timer, true, mistakes);
-        }
+    // Check if solved using comprehensive validation
+    if (validateCompletedGrid(newGrid, sudokuSize)) {
+      console.log(`✅ Grid solved! Size: ${sudokuSize}×${sudokuSize}, Timer: ${timer}s, Mistakes: ${mistakes}`);
+      console.log('Grid state after validation passed:', newGrid);
+      setIsTimerActive(false);
+      setGameCompleted(true);
+      
+      // Save stats to Firestore if user is logged in
+      if (userId) {
+        updateUserStats(userId, timer, true, mistakes);
+      }
+    } else {
+      const filledCount = newGrid.flat().filter((c: number) => c !== 0).length;
+      const totalCells = sudokuSize * sudokuSize;
+      if (filledCount === totalCells) {
+        console.warn(`⚠️ Grid fully filled (${filledCount}/${totalCells}) but validation failed for size ${sudokuSize}×${sudokuSize}`);
       }
     }
   }, [grid, initialGrid, pencilMarks, isPencilMode, userId, timer]);
@@ -1085,18 +1081,24 @@ export default function GamePage() {
 
   // Trigger confetti and stop timer when puzzle is solved
   useEffect(() => {
-    if (gameCompleted && remainingCells === 0) {
-      console.log('🎉 Puzzle solved! Confetti!');
-      setIsTimerActive(false);
-      setCelebrationDismissed(false);
+    if (gameCompleted) {
+      console.log(`🟢 Game completed triggered. Remaining cells: ${remainingCells}, Grid fully filled: ${remainingCells === 0}`);
       
-      // Trigger confetti
-      confetti({
-        particleCount: 200,
-        spread: 90,
-        origin: { y: 0.5 },
-        colors: ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa']
-      });
+      if (remainingCells === 0) {
+        console.log('🎉 All cells filled! Triggering celebration...');
+        setIsTimerActive(false);
+        setCelebrationDismissed(false);
+        
+        // Trigger confetti
+        confetti({
+          particleCount: 200,
+          spread: 90,
+          origin: { y: 0.5 },
+          colors: ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa']
+        });
+      } else {
+        console.warn(`⚠️ Game marked complete but ${remainingCells} cells still empty!`);
+      }
     }
   }, [gameCompleted, remainingCells]);
 
