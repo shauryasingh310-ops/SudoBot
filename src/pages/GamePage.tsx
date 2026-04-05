@@ -1161,8 +1161,8 @@ export default function GamePage() {
         {/* Header */}
         <header className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-gray-800 to-black rounded-2xl shadow-lg shadow-black/30">
-              <Zap className="w-8 h-8 text-white" />
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-white/20">
+              <Zap className="w-6 h-6 text-black" />
             </div>
             <div>
               <h1 className={`text-3xl font-bold tracking-tight bg-clip-text text-transparent ${isDarkMode ? 'bg-gradient-to-r from-gray-200 to-white' : 'bg-gradient-to-r from-gray-900 to-gray-800'}`}>
