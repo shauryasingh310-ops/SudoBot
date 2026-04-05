@@ -285,10 +285,10 @@ export default function GamePage() {
       }
       
       // Only process if size actually changed from before
-      if (sudokuSize === prevSizeRef.current) return;
-      prevSizeRef.current = sudokuSize;
+      const oldSize = prevSizeRef.current;
+      if (sudokuSize === oldSize) return;
       
-      console.log(`Grid size changed from ${prevSizeRef.current} to ${sudokuSize}`);
+      prevSizeRef.current = sudokuSize;
       
       // Stop any active solving immediately
       solveAbortRef.current = true;
@@ -296,9 +296,15 @@ export default function GamePage() {
       
       // Clear the saved state so no old data interferes
       localStorage.removeItem('sudoku-state');
+      localStorage.setItem('sudoku-size', sudokuSize.toString());
       
-      // Create empty grid with correct dimensions
-      const emptyGrid: Grid = createEmptyGrid(sudokuSize);
+      // Create empty grid with correct dimensions - FORCE it to be exactly the right size
+      const emptyGrid: Grid = [];
+      for (let i = 0; i < sudokuSize; i++) {
+        emptyGrid.push(Array(sudokuSize).fill(0));
+      }
+      console.log(`Created grid: ${emptyGrid.length}×${emptyGrid[0]?.length}`);
+      
       setGrid(emptyGrid);
       setInitialGrid(emptyGrid);
       setSolution(null);
@@ -1063,7 +1069,7 @@ export default function GamePage() {
           <div className="flex items-center gap-4">
             {/* Size Selector - Before Time */}
             <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10 shadow-sm'}`}>
-              <label className="text-[10px] uppercase tracking-widest opacity-60 font-semibold whitespace-nowrap">Grid Size</label>
+              <label className="text-[10px] uppercase tracking-widest opacity-60 font-semibold whitespace-nowrap">Sudoku Size</label>
               <select
                 value={sudokuSize}
                 onChange={(e) => setSudokuSize(parseInt(e.target.value) as SudokuSize)}
