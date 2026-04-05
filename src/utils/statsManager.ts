@@ -13,6 +13,12 @@ export interface UserStats {
   lastPlayedDate?: string;
 }
 
+export interface UserProfile {
+  name?: string;
+  description?: string;
+  photoURL?: string;
+}
+
 export interface GameRecord {
   date: string; // ISO date string (YYYY-MM-DD)
   gameTime: number;
@@ -418,5 +424,42 @@ export const fetchRatingHistoryForChart = async (uid: string): Promise<RatingHis
       rating += Math.random() * 20 - 10; // Small random variation
     }
     return result;
+  }
+};
+
+// Fetch user profile
+export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists() && userDoc.data().profile) {
+      const profile = userDoc.data().profile as UserProfile;
+      console.log('✅ User profile fetched:', profile);
+      return profile;
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error.message);
+    return null;
+  }
+};
+
+// Update user profile
+export const updateUserProfile = async (uid: string, profile: UserProfile): Promise<boolean> => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    
+    await updateDoc(userRef, {
+      'profile': profile,
+      'lastUpdated': new Date().toISOString()
+    });
+    
+    console.log('✅ User profile updated:', profile);
+    return true;
+  } catch (error: any) {
+    console.error('❌ Error updating user profile:', error.message);
+    return false;
   }
 };

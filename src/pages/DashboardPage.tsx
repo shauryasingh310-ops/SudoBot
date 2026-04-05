@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Home } from 'lucide-react';
+import { LogOut, Home, Edit3, X, Save } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, LineController, Filler } from 'chart.js';
-import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats } from '../utils/statsManager';
+import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats, fetchUserProfile, updateUserProfile, UserProfile } from '../utils/statsManager';
 import { HeatmapGrid } from '../components/HeatmapGrid';
 import { HeatmapLegend } from '../components/HeatmapLegend';
 
@@ -28,6 +28,17 @@ export default function DashboardPage() {
     accuracy: 0,
     avgTime: 0,
     bestStreak: 0
+  });
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '',
+    description: '',
+    photoURL: ''
+  });
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<UserProfile>({
+    name: '',
+    description: '',
+    photoURL: ''
   });
   const [heatmapData, setHeatmapData] = useState<Record<string, any>>({});
   const chartRef = useRef<Chart | null>(null);
@@ -156,6 +167,22 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userId]);
 
+  // Fetch user profile
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadProfile = async () => {
+      const userProfile = await fetchUserProfile(userId);
+      if (userProfile) {
+        console.log('👤 Profile loaded:', userProfile);
+        setProfile(userProfile);
+        setEditingProfile(userProfile);
+      }
+    };
+
+    loadProfile();
+  }, [userId]);
+
   // Recreate chart when dark mode changes (synced from GamePage)
   useEffect(() => {
     if (initRef.current) {
@@ -244,6 +271,19 @@ export default function DashboardPage() {
     });
   };
 
+  const handleSaveProfile = async () => {
+    if (!userId) return;
+
+    const success = await updateUserProfile(userId, editingProfile);
+    if (success) {
+      setProfile(editingProfile);
+      setShowProfileModal(false);
+      console.log('✅ Profile saved successfully');
+    } else {
+      console.error('❌ Failed to save profile');
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -282,6 +322,30 @@ export default function DashboardPage() {
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Profile Card */}
+          <div className={`border rounded-2xl p-8 transition-all ${isDarkMode ? 'bg-white/4 border-white/10 hover:bg-white/8 hover:border-white/20' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400'}`}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>Profile</h2>
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
+              >
+                <Edit3 size={20} className="text-indigo-400" />
+              </button>
+            </div>
+            <div className="text-center">
+              {profile.photoURL && (
+                <img src={profile.photoURL} alt="Profile" className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-2 border-indigo-400" />
+              )}
+              <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {profile.name || 'No name set'}
+              </h3>
+              <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                {profile.description || 'No description yet'}
+              </p>
+            </div>
+          </div>
+
           {/* Intelligence Level Card */}
           <div className={`border rounded-2xl p-8 transition-all ${isDarkMode ? 'bg-white/4 border-white/10 hover:bg-white/8 hover:border-white/20' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400'}`}>
             <h2 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>Sudoku Intelligence Level</h2>
@@ -371,6 +435,87 @@ export default function DashboardPage() {
             <canvas id="progressChart" />
           </div>
         </div>
+
+        {/* Profile Edit Modal */}
+        {showProfileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className={`w-full max-w-md rounded-2xl p-8 border ${isDarkMode ? 'bg-white/10 border-white/20' : 'bg-white border-slate-200'}`}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Edit Profile</h3>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Photo URL */}
+                <div>
+                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
+                    Photo URL
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://example.com/photo.jpg"
+                    value={editingProfile.photoURL || ''}
+                    onChange={(e) => setEditingProfile({ ...editingProfile, photoURL: e.target.value })}
+                    className={`w-full px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  />
+                  {editingProfile.photoURL && (
+                    <img src={editingProfile.photoURL} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover" />
+                  )}
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Your name"
+                    value={editingProfile.name || ''}
+                    onChange={(e) => setEditingProfile({ ...editingProfile, name: e.target.value })}
+                    className={`w-full px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
+                    Description
+                  </label>
+                  <textarea
+                    placeholder="Tell us about yourself"
+                    value={editingProfile.description || ''}
+                    onChange={(e) => setEditingProfile({ ...editingProfile, description: e.target.value })}
+                    rows={4}
+                    className={`w-full px-4 py-2 rounded-lg border transition-all resize-none ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowProfileModal(false)}
+                    className={`flex-1 px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 hover:bg-white/10 text-white' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-900'}`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    className="flex-1 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save size={18} />
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
