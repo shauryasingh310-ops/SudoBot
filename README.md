@@ -91,7 +91,8 @@ If you scan a puzzle and it doesn't load, try a cleaner photo with better lighti
 
 ---
 ## Live Application
-🔗 `sudo-bot-kappa.vercel.app`
+🔗 [sudo-bot-kappa.vercel.app](https://sudo-bot-kappa.vercel.app)
+
 ## License
 
 MIT
