@@ -1162,7 +1162,17 @@ export default function GamePage() {
         <header className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-white/20">
-              <Zap className="w-6 h-6 text-black" />
+              <svg viewBox="0 0 18 18" fill="none" stroke="#080808" strokeWidth="1.2" className="w-6 h-6">
+                <rect x="2" y="2" width="4" height="4" rx="0.5" fill="#080808" />
+                <rect x="7" y="2" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="12" y="2" width="4" height="4" rx="0.5" fill="#080808" />
+                <rect x="2" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="7" y="7" width="4" height="4" rx="0.5" fill="#080808" />
+                <rect x="12" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="2" y="12" width="4" height="4" rx="0.5" fill="#080808" />
+                <rect x="7" y="12" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="12" y="12" width="4" height="4" rx="0.5" fill="#080808" />
+              </svg>
             </div>
             <div>
               <h1 className={`text-3xl font-bold tracking-tight bg-clip-text text-transparent ${isDarkMode ? 'bg-gradient-to-r from-gray-200 to-white' : 'bg-gradient-to-r from-gray-900 to-gray-800'}`}>
