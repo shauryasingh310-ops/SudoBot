@@ -7,9 +7,10 @@ const DAYS = ['S','M','T','W','T','F','S'];
 
 interface HeatmapGridProps {
   heatmapData?: Record<string, { count: number; rating?: number; avgTime?: number; wins?: number }>;
+  isDarkMode?: boolean;
 }
 
-export const HeatmapGrid = ({ heatmapData = {} }: HeatmapGridProps) => {
+export const HeatmapGrid = ({ heatmapData = {}, isDarkMode = true }: HeatmapGridProps) => {
   const today = dayjs().format('YYYY-MM-DD');
 
   const weeks = useMemo(() => {
@@ -46,7 +47,7 @@ export const HeatmapGrid = ({ heatmapData = {} }: HeatmapGridProps) => {
         <div className="relative h-5 mb-2 ml-7">
           {monthLabels.map(({ i, label }) => (
             <span key={`${label}-${i}`}
-              className="absolute text-[10px] text-slate-500 font-mono"
+              className={`absolute text-[10px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}
               style={{ left: `${i * 15}px` }}>
               {label}
             </span>
@@ -57,7 +58,7 @@ export const HeatmapGrid = ({ heatmapData = {} }: HeatmapGridProps) => {
             {DAYS.map((d, i) => (
               <div key={i} className="w-3 h-3 flex items-center justify-end">
                 {i % 2 !== 0 && (
-                  <span className="text-[8px] text-slate-500 font-mono">{d}</span>
+                  <span className={`text-[8px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{d}</span>
                 )}
               </div>
             ))}
@@ -71,6 +72,7 @@ export const HeatmapGrid = ({ heatmapData = {} }: HeatmapGridProps) => {
                     date={date}
                     data={date ? heatmapData[date] || null : null}
                     isToday={date === today}
+                    isDarkMode={isDarkMode}
                   />
                 ))}
               </div>

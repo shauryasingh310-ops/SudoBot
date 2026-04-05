@@ -173,7 +173,10 @@ export default function GamePage() {
   const [sudokuSize, setSudokuSize] = useState<SudokuSize>(9);
   const [timer, setTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme-mode');
+    return saved ? saved === 'dark' : true;
+  });
   const [isScanning, setIsScanning] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -211,6 +214,13 @@ export default function GamePage() {
     
     return unsubscribe;
   }, [navigate]);
+
+  // Save theme mode and sync across tabs/pages
+  useEffect(() => {
+    localStorage.setItem('theme-mode', isDarkMode ? 'dark' : 'light');
+    // Dispatch custom event for same-window listeners
+    window.dispatchEvent(new CustomEvent('themeChange', { detail: { isDarkMode } }));
+  }, [isDarkMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem('sudoku-state');

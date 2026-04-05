@@ -1,5 +1,5 @@
-export const HeatmapLegend = () => (
-  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+export const HeatmapLegend = ({ isDarkMode = true }: { isDarkMode?: boolean }) => (
+  <div className={`flex items-center gap-2 text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>
     <span>Fewer games</span>
     {[
       'bg-slate-800 border border-slate-700',

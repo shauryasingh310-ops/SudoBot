@@ -20,9 +20,10 @@ interface HeatmapCellProps {
   date: string | null;
   data: HeatmapData | null;
   isToday: boolean;
+  isDarkMode?: boolean;
 }
 
-export const HeatmapCell = memo(({ date, data, isToday }: HeatmapCellProps) => {
+export const HeatmapCell = memo(({ date, data, isToday, isDarkMode = true }: HeatmapCellProps) => {
   const [hov, setHov] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -66,40 +67,40 @@ export const HeatmapCell = memo(({ date, data, isToday }: HeatmapCellProps) => {
                 ? ref.current.getBoundingClientRect().top + 'px'
                 : '50%',
             }}
-            className="bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-2xl min-w-[160px]"
+            className={`border rounded-lg px-3 py-2 text-xs shadow-2xl min-w-[160px] ${isDarkMode ? 'bg-slate-950 border-white/10' : 'bg-white border-slate-300'}`}
           >
-            <div className="font-mono text-slate-300 font-medium mb-2 pb-1.5 border-b border-white/8">
+            <div className={`font-mono font-medium mb-2 pb-1.5 border-b ${isDarkMode ? 'text-slate-300 border-white/8' : 'text-slate-700 border-slate-300'}`}>
               {date}
             </div>
             {data && data.count > 0 ? (
               <div className="space-y-1.5">
                 <div className="flex justify-between gap-6">
-                  <span className="text-slate-500">Games</span>
-                  <span className="text-white font-mono">{data.count}</span>
+                  <span className={isDarkMode ? 'text-slate-500' : 'text-slate-600'}>Games</span>
+                  <span className={`font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{data.count}</span>
                 </div>
                 {data.avgTime !== undefined && (
                   <div className="flex justify-between gap-6">
-                    <span className="text-slate-500">Avg Time</span>
-                    <span className="text-white font-mono">
+                    <span className={isDarkMode ? 'text-slate-500' : 'text-slate-600'}>Avg Time</span>
+                    <span className={`font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       {Math.floor(data.avgTime / 60)}:{(data.avgTime % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
                 )}
                 {data.rating !== undefined && (
                   <div className="flex justify-between gap-6">
-                    <span className="text-slate-500">Rating</span>
+                    <span className={isDarkMode ? 'text-slate-500' : 'text-slate-600'}>Rating</span>
                     <span className="text-indigo-400 font-mono">{data.rating}</span>
                   </div>
                 )}
                 {data.wins !== undefined && (
                   <div className="flex justify-between gap-6">
-                    <span className="text-slate-500">Wins</span>
+                    <span className={isDarkMode ? 'text-slate-500' : 'text-slate-600'}>Wins</span>
                     <span className="text-emerald-400 font-mono">{data.wins}</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-slate-600 font-mono text-center py-1">
+              <div className={`font-mono text-center py-1 ${isDarkMode ? 'text-slate-600' : 'text-slate-500'}`}>
                 No games
               </div>
             )}
