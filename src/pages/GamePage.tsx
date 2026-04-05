@@ -170,7 +170,10 @@ export default function GamePage() {
   const [isPaused, setIsPaused] = useState(false);
   const [solveSpeed, setSolveSpeed] = useState(50);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(9);
+  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(() => {
+    const saved = localStorage.getItem('sudoku-size');
+    return (saved as SudokuSize) || 9;
+  });
   const [timer, setTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -222,6 +225,11 @@ export default function GamePage() {
     window.dispatchEvent(new CustomEvent('themeChange', { detail: { isDarkMode } }));
   }, [isDarkMode]);
 
+  // Persist sudoku size across navigation
+  useEffect(() => {
+    localStorage.setItem('sudoku-size', sudokuSize.toString());
+  }, [sudokuSize]);
+
   useEffect(() => {
     const saved = localStorage.getItem('sudoku-state');
     if (saved) {
@@ -238,8 +246,8 @@ export default function GamePage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('sudoku-state', JSON.stringify({ grid, initialGrid, timer, difficulty }));
-  }, [grid, initialGrid, timer, difficulty]);
+    localStorage.setItem('sudoku-state', JSON.stringify({ grid, initialGrid, timer, difficulty, sudokuSize }));
+  }, [grid, initialGrid, timer, difficulty, sudokuSize]);
 
   useEffect(() => {
     if (isTimerActive) {
