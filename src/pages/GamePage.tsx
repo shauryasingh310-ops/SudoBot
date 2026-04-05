@@ -298,12 +298,8 @@ export default function GamePage() {
       localStorage.removeItem('sudoku-state');
       localStorage.setItem('sudoku-size', sudokuSize.toString());
       
-      // Create empty grid with correct dimensions - FORCE it to be exactly the right size
-      const emptyGrid: Grid = [];
-      for (let i = 0; i < sudokuSize; i++) {
-        emptyGrid.push(Array(sudokuSize).fill(0));
-      }
-      console.log(`Created grid: ${emptyGrid.length}×${emptyGrid[0]?.length}`);
+      // Create empty grid with correct dimensions
+      const emptyGrid: Grid = createEmptyGrid(sudokuSize);
       
       setGrid(emptyGrid);
       setInitialGrid(emptyGrid);
