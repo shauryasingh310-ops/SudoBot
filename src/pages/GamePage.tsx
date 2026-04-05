@@ -1163,15 +1163,15 @@ export default function GamePage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-white/20">
               <svg viewBox="0 0 18 18" fill="none" stroke="#080808" strokeWidth="1.2" className="w-6 h-6">
-                <rect x="2" y="2" width="4" height="4" rx="0.5" fill="#080808" />
-                <rect x="7" y="2" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
-                <rect x="12" y="2" width="4" height="4" rx="0.5" fill="#080808" />
-                <rect x="2" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
-                <rect x="7" y="7" width="4" height="4" rx="0.5" fill="#080808" />
-                <rect x="12" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
-                <rect x="2" y="12" width="4" height="4" rx="0.5" fill="#080808" />
-                <rect x="7" y="12" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
-                <rect x="12" y="12" width="4" height="4" rx="0.5" fill="#080808" />
+                <rect x="1" y="1" width="5" height="5" rx="0.5" fill="#080808" />
+                <rect x="7" y="1" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="13" y="1" width="5" height="5" rx="0.5" fill="#080808" />
+                <rect x="1" y="7" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="7" y="7" width="5" height="5" rx="0.5" fill="#080808" />
+                <rect x="13" y="7" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="1" y="13" width="5" height="5" rx="0.5" fill="#080808" />
+                <rect x="7" y="13" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1.2" />
+                <rect x="13" y="13" width="5" height="5" rx="0.5" fill="#080808" />
               </svg>
             </div>
             <div>

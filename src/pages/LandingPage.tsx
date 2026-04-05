@@ -110,15 +110,15 @@ export default function LandingPage() {
         <div className="mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-white/20">
             <svg viewBox="0 0 18 18" fill="none" stroke="#080808" strokeWidth="1.2" className="w-10 h-10">
-              <rect x="2" y="2" width="4" height="4" rx="0.5" fill="#080808" />
-              <rect x="7" y="2" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
-              <rect x="12" y="2" width="4" height="4" rx="0.5" fill="#080808" />
-              <rect x="2" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
-              <rect x="7" y="7" width="4" height="4" rx="0.5" fill="#080808" />
-              <rect x="12" y="7" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
-              <rect x="2" y="12" width="4" height="4" rx="0.5" fill="#080808" />
-              <rect x="7" y="12" width="4" height="4" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
-              <rect x="12" y="12" width="4" height="4" rx="0.5" fill="#080808" />
+              <rect x="1" y="1" width="5" height="5" rx="0.5" fill="#080808" />
+              <rect x="7" y="1" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
+              <rect x="13" y="1" width="5" height="5" rx="0.5" fill="#080808" />
+              <rect x="1" y="7" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
+              <rect x="7" y="7" width="5" height="5" rx="0.5" fill="#080808" />
+              <rect x="13" y="7" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
+              <rect x="1" y="13" width="5" height="5" rx="0.5" fill="#080808" />
+              <rect x="7" y="13" width="5" height="5" rx="0.5" fill="none" stroke="#080808" strokeWidth="1" />
+              <rect x="13" y="13" width="5" height="5" rx="0.5" fill="#080808" />
             </svg>
           </div>
           <h2 className="text-5xl font-black tracking-tighter mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
