@@ -2,7 +2,7 @@
 
 Scan a sudoku puzzle, solve it instantly, or challenge yourself with hints and real-time validation — all in the browser.
 
-Live at **[sudo-bot-kappa.vercel.app](https://sudo-bot-kappa.vercel.app)**
+Live at : 🔗 **[sudo-bot-kappa.vercel.app](https://sudo-bot-kappa.vercel.app)**
 
 Built with React + TypeScript, Firebase for cloud sync, and Tesseract.js for image recognition.
 
