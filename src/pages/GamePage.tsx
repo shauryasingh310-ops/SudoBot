@@ -155,25 +155,36 @@ const generatePuzzle = (difficulty: Difficulty, size: SudokuSize): { puzzle: Gri
 export default function GamePage() {
   const navigate = useNavigate();
   
-  // State
-  const [grid, setGrid] = useState<Grid>(() => createEmptyGrid(9));
-  const [initialGrid, setInitialGrid] = useState<Grid>(() => createEmptyGrid(9));
+  // Helper: Get saved sudoku size from localStorage
+  const getSavedSudokuSize = (): SudokuSize => {
+    const saved = localStorage.getItem('sudoku-size');
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if ([4, 6, 9].includes(parsed)) {
+        return parsed as SudokuSize;
+      }
+    }
+    return 9;
+  };
+
+  const savedSize = getSavedSudokuSize();
+
+  // State - Initialize with correct sudokuSize from localStorage
+  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(savedSize);
+  const [grid, setGrid] = useState<Grid>(() => createEmptyGrid(savedSize));
+  const [initialGrid, setInitialGrid] = useState<Grid>(() => createEmptyGrid(savedSize));
   const [solution, setSolution] = useState<Grid | null>(null);
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [history, setHistory] = useState<Grid[]>([]);
   const [redoStack, setRedoStack] = useState<Grid[]>([]);
   const [isPencilMode, setIsPencilMode] = useState(false);
-  const [pencilMarks, setPencilMarks] = useState<Set<number>[][]>(
-    Array(9).fill(null).map(() => Array(9).fill(null).map(() => new Set()))
+  const [pencilMarks, setPencilMarks] = useState<Set<number>[][]>(() =>
+    Array(savedSize).fill(null).map(() => Array(savedSize).fill(null).map(() => new Set()))
   );
   const [isSolving, setIsSolving] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [solveSpeed, setSolveSpeed] = useState(50);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(() => {
-    const saved = localStorage.getItem('sudoku-size');
-    return (saved as SudokuSize) || 9;
-  });
   const [timer, setTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -193,7 +204,7 @@ export default function GamePage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const solveAbortRef = useRef(false);
   const activeSolveSizeRef = useRef<SudokuSize | null>(null);
-  const prevSizeRef = useRef<SudokuSize>(9);
+  const prevSizeRef = useRef<SudokuSize | undefined>(undefined);
 
   // --- Effects ---
 
@@ -225,20 +236,24 @@ export default function GamePage() {
     window.dispatchEvent(new CustomEvent('themeChange', { detail: { isDarkMode } }));
   }, [isDarkMode]);
 
-  // Persist sudoku size across navigation
-  useEffect(() => {
-    localStorage.setItem('sudoku-size', sudokuSize.toString());
-  }, [sudokuSize]);
-
+  // Load saved game state from localStorage (only once on mount)
   useEffect(() => {
     const saved = localStorage.getItem('sudoku-state');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setGrid(parsed.grid);
-        setInitialGrid(parsed.initialGrid);
-        setTimer(parsed.timer);
-        setDifficulty(parsed.difficulty);
+        // Only restore if the saved size matches current size
+        if (parsed.sudokuSize && parsed.sudokuSize === sudokuSize) {
+          setGrid(parsed.grid);
+          setInitialGrid(parsed.initialGrid);
+          setTimer(parsed.timer);
+          setDifficulty(parsed.difficulty);
+          if (parsed.pencilMarks) {
+            setPencilMarks(parsed.pencilMarks.map((row: any[]) => row.map((cell: any) => new Set(cell))));
+          }
+        } else {
+          console.warn(`Size mismatch: saved ${parsed.sudokuSize} vs current ${sudokuSize}`);
+        }
       } catch (e) {
         console.error("Failed to load saved state", e);
       }
@@ -246,8 +261,8 @@ export default function GamePage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('sudoku-state', JSON.stringify({ grid, initialGrid, timer, difficulty, sudokuSize }));
-  }, [grid, initialGrid, timer, difficulty, sudokuSize]);
+    localStorage.setItem('sudoku-state', JSON.stringify({ grid, initialGrid, timer, difficulty, sudokuSize, pencilMarks: Array.from(pencilMarks, row => row.map(cell => Array.from(cell))) }));
+  }, [grid, initialGrid, timer, difficulty, sudokuSize, pencilMarks]);
 
   useEffect(() => {
     if (isTimerActive) {
@@ -260,16 +275,27 @@ export default function GamePage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isTimerActive]);
 
-  // Handle grid size changes
+  // Handle grid size changes (only when size actually changes, not on initial mount)
   useEffect(() => {
     if (sudokuSize === 4 || sudokuSize === 6 || sudokuSize === 9) {
-      // Only process if size actually changed
+      // Skip on initial mount (when prevSizeRef is still undefined)
+      if (prevSizeRef.current === undefined) {
+        prevSizeRef.current = sudokuSize;
+        return;
+      }
+      
+      // Only process if size actually changed from before
       if (sudokuSize === prevSizeRef.current) return;
       prevSizeRef.current = sudokuSize;
+      
+      console.log(`Grid size changed from ${prevSizeRef.current} to ${sudokuSize}`);
       
       // Stop any active solving immediately
       solveAbortRef.current = true;
       activeSolveSizeRef.current = null;
+      
+      // Clear the saved state so no old data interferes
+      localStorage.removeItem('sudoku-state');
       
       // Create empty grid with correct dimensions
       const emptyGrid: Grid = createEmptyGrid(sudokuSize);
