@@ -166,6 +166,7 @@ export const updateUserStats = async (
       'stats': updatedStats,
       'lastUpdated': new Date().toISOString()
     });
+    console.log('✅ User stats updated in Firestore:', updatedStats);
 
     // Store game record in sub-collection for history tracking
     try {
@@ -181,8 +182,9 @@ export const updateUserStats = async (
       const gamesRef = collection(db, 'users', uid, 'games');
       const gameDocId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await setDoc(doc(gamesRef, gameDocId), gameRecord);
+      console.log('✅ Game record saved to Firestore:', { gameDocId, gameRecord });
     } catch (err: any) {
-      console.warn('Could not store game record:', err);
+      console.error('❌ Error storing game record:', err);
     }
 
     // Cache locally
@@ -226,55 +228,68 @@ export const fetchUserStats = async (uid: string): Promise<UserStats | null> => 
   }
 };
 
-// Fetch game history for the last 12 weeks (for heatmap)
+// Fetch game history for the last 365 days (for heatmap)
 export const fetchGameHistoryForHeatmap = async (uid: string): Promise<Record<string, number>> => {
   try {
     const today = new Date();
     const data: Record<string, number> = {};
 
-    // Initialize all dates to 0
-    for (let i = 0; i < 84; i++) {
+    // Initialize all dates to 0 (full year)
+    for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const key = date.toISOString().split('T')[0];
       data[key] = 0;
     }
 
+    console.log('📥 Fetching game history for user:', uid);
+
     // Fetch game records from Firestore
     const gamesRef = collection(db, 'users', uid, 'games');
     const q = query(gamesRef);
     const snapshot = await getDocs(q);
 
+    console.log('📊 Found', snapshot.size, 'game records');
+
     snapshot.forEach((doc) => {
       const game = doc.data() as GameRecord;
       const gameDate = game.date;
       
-      // Only count games from last 12 weeks
-      const gameDateTime = new Date(gameDate).getTime();
+      // Only count games from last 365 days
+      const gameDateTime = new Date(gameDate + 'T00:00:00Z').getTime();
       const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 84);
+      cutoffDate.setDate(cutoffDate.getDate() - 365);
       
       if (gameDateTime >= cutoffDate.getTime()) {
-        data[gameDate] = (data[gameDate] || 0) + 1;
+        if (data[gameDate] !== undefined) {
+          data[gameDate]++;
+        } else {
+          data[gameDate] = 1;
+        }
+        console.log('  📌', gameDate, '→', data[gameDate], 'games');
       }
     });
+
+    const totalGames = Object.values(data).reduce((a, b) => a + b, 0);
+    console.log('✅ Game history fetched:', totalGames, 'total games in past 365 days');
 
     // Cache locally
     localStorage.setItem(`game-history-${uid}`, JSON.stringify(data));
     return data;
   } catch (error: any) {
-    console.error('Error fetching game history:', error);
+    console.error('❌ Error fetching game history:', error);
     
     // Try to use cached data
     const cached = localStorage.getItem(`game-history-${uid}`);
     if (cached) {
+      console.log('📦 Using cached game history');
       return JSON.parse(cached);
     }
 
     // Return empty heatmap
     const today = new Date();
     const data: Record<string, number> = {};
-    for (let i = 0; i < 84; i++) {
+    for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const key = date.toISOString().split('T')[0];

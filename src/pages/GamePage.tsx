@@ -39,33 +39,48 @@ import { updateUserStats, initializeUserStats } from '../utils/statsManager';
 
 type Grid = number[][];
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
+type SudokuSize = 4 | 6 | 9; // 4x4, 6x6, 9x9 grids
 
-const EMPTY_GRID: Grid = Array(9).fill(null).map(() => Array(9).fill(0));
+const createEmptyGrid = (size: SudokuSize): Grid => 
+  Array(size).fill(null).map(() => Array(size).fill(0));
+
+const EMPTY_GRID: Grid = createEmptyGrid(9);
 
 // --- Sudoku Logic ---
 
-const isValid = (grid: Grid, row: number, col: number, num: number): boolean => {
-  for (let x = 0; x < 9; x++) {
-    if (grid[row][x] === num || grid[x][col] === num) return false;
+const isValid = (grid: Grid, row: number, col: number, num: number, size: SudokuSize = 9): boolean => {
+  // Guard against invalid grid or parameters
+  if (!grid || !grid[row] || row < 0 || col < 0 || row >= size || col >= size) return false;
+  
+  const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+    4: { rows: 2, cols: 2 }, 
+    6: { rows: 2, cols: 3 }, 
+    9: { rows: 3, cols: 3 } 
+  };
+  const { rows: boxRows, cols: boxCols } = boxSizeMap[size];
+
+  for (let x = 0; x < size; x++) {
+    if (grid[row]?.[x] === num || grid[x]?.[col] === num) return false;
   }
-  const startRow = row - (row % 3);
-  const startCol = col - (col % 3);
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      if (grid[i + startRow][j + startCol] === num) return false;
+
+  const startRow = row - (row % boxRows);
+  const startCol = col - (col % boxCols);
+  for (let i = 0; i < boxRows; i++) {
+    for (let j = 0; j < boxCols; j++) {
+      if (grid[i + startRow]?.[j + startCol] === num) return false;
     }
   }
   return true;
 };
 
-const solveSudoku = (grid: Grid): boolean => {
-  for (let row = 0; row < 9; row++) {
-    for (let col = 0; col < 9; col++) {
+const solveSudoku = (grid: Grid, size: SudokuSize = 9): boolean => {
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
       if (grid[row][col] === 0) {
-        for (let num = 1; num <= 9; num++) {
-          if (isValid(grid, row, col, num)) {
+        for (let num = 1; num <= size; num++) {
+          if (isValid(grid, row, col, num, size)) {
             grid[row][col] = num;
-            if (solveSudoku(grid)) return true;
+            if (solveSudoku(grid, size)) return true;
             grid[row][col] = 0;
           }
         }
@@ -76,38 +91,56 @@ const solveSudoku = (grid: Grid): boolean => {
   return true;
 };
 
-const findEmpty = (grid: Grid): [number, number] | null => {
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
+const findEmpty = (grid: Grid, size: SudokuSize = 9): [number, number] | null => {
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
       if (grid[r][c] === 0) return [r, c];
     }
   }
   return null;
 };
 
-const generatePuzzle = (difficulty: Difficulty): { puzzle: Grid; solution: Grid } => {
-  const solution: Grid = Array(9).fill(null).map(() => Array(9).fill(0));
+const generatePuzzle = (difficulty: Difficulty, size: SudokuSize): { puzzle: Grid; solution: Grid } => {
+  const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+    4: { rows: 2, cols: 2 }, 
+    6: { rows: 2, cols: 3 }, 
+    9: { rows: 3, cols: 3 } 
+  };
+  const { rows: boxRows, cols: boxCols } = boxSizeMap[size];
+  const solution: Grid = Array(size).fill(null).map(() => Array(size).fill(0));
   
-  // Fill diagonal 3x3 boxes first for randomness
-  for (let i = 0; i < 9; i += 3) {
-    const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
-    let idx = 0;
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 3; c++) {
-        solution[i + r][i + c] = nums[idx++];
+  // Fill diagonal boxes first for randomness
+  const step = Math.max(boxRows, boxCols);
+  for (let boxRow = 0; boxRow < size; boxRow += boxRows) {
+    for (let boxCol = 0; boxCol < size; boxCol += boxCols) {
+      if (Math.floor(boxRow / boxRows) === Math.floor(boxCol / boxCols)) { // Diagonal boxes only
+        const nums = Array.from({ length: size }, (_, idx) => idx + 1).sort(() => Math.random() - 0.5);
+        let idx = 0;
+        for (let r = 0; r < boxRows; r++) {
+          for (let c = 0; c < boxCols; c++) {
+            if (boxRow + r < size && boxCol + c < size) {
+              solution[boxRow + r][boxCol + c] = nums[idx++];
+            }
+          }
+        }
       }
     }
   }
   
-  solveSudoku(solution);
+  solveSudoku(solution, size);
   
-  const puzzle = solution.map(row => [...row]);
-  const attempts = difficulty === 'Easy' ? 30 : difficulty === 'Medium' ? 45 : 60;
+  const puzzle = solution.map((row: number[]) => [...row]);
+  const attemptsMap: Record<Difficulty, Record<SudokuSize, number>> = {
+    Easy: { 4: 4, 6: 10, 9: 30 },
+    Medium: { 4: 6, 6: 15, 9: 45 },
+    Hard: { 4: 8, 6: 20, 9: 60 }
+  };
+  const attempts = attemptsMap[difficulty][size];
   
   let count = 0;
   while (count < attempts) {
-    const r = Math.floor(Math.random() * 9);
-    const c = Math.floor(Math.random() * 9);
+    const r = Math.floor(Math.random() * size);
+    const c = Math.floor(Math.random() * size);
     if (puzzle[r][c] !== 0) {
       puzzle[r][c] = 0;
       count++;
@@ -123,8 +156,8 @@ export default function GamePage() {
   const navigate = useNavigate();
   
   // State
-  const [grid, setGrid] = useState<Grid>(EMPTY_GRID);
-  const [initialGrid, setInitialGrid] = useState<Grid>(EMPTY_GRID);
+  const [grid, setGrid] = useState<Grid>(() => createEmptyGrid(9));
+  const [initialGrid, setInitialGrid] = useState<Grid>(() => createEmptyGrid(9));
   const [solution, setSolution] = useState<Grid | null>(null);
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [history, setHistory] = useState<Grid[]>([]);
@@ -137,6 +170,7 @@ export default function GamePage() {
   const [isPaused, setIsPaused] = useState(false);
   const [solveSpeed, setSolveSpeed] = useState(50);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(9);
   const [timer, setTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -152,6 +186,8 @@ export default function GamePage() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const solveAbortRef = useRef(false);
+  const activeSolveSizeRef = useRef<SudokuSize | null>(null);
+  const prevSizeRef = useRef<SudokuSize>(9);
 
   // --- Effects ---
 
@@ -198,7 +234,7 @@ export default function GamePage() {
   useEffect(() => {
     if (isTimerActive) {
       timerRef.current = setInterval(() => {
-        setTimer(t => t + 1);
+        setTimer((t: number) => t + 1);
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -206,12 +242,45 @@ export default function GamePage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isTimerActive]);
 
+  // Handle grid size changes
+  useEffect(() => {
+    if (sudokuSize === 4 || sudokuSize === 6 || sudokuSize === 9) {
+      // Only process if size actually changed
+      if (sudokuSize === prevSizeRef.current) return;
+      prevSizeRef.current = sudokuSize;
+      
+      // Stop any active solving immediately
+      solveAbortRef.current = true;
+      activeSolveSizeRef.current = null;
+      
+      // Create empty grid with correct dimensions
+      const emptyGrid: Grid = createEmptyGrid(sudokuSize);
+      setGrid(emptyGrid);
+      setInitialGrid(emptyGrid);
+      setSolution(null);
+      setHistory([]);
+      setRedoStack([]);
+      setPencilMarks(Array(sudokuSize).fill(null).map(() => Array(sudokuSize).fill(null).map(() => new Set())));
+      setSelectedCell(null);
+      setTimer(0);
+      setIsTimerActive(false);
+      setIsSolving(false);
+      setIsPaused(false);
+      setDifficulty(null);
+      setMistakes(0);
+      setError(null);
+      setUploadedImage(null);
+      setCelebrationDismissed(false);
+      setGameCompleted(false);
+    }
+  }, [sudokuSize]);
+
   // --- Handlers ---
 
   const handleCellClick = (r: number, c: number) => {
     if (isSolving) return;
     setSelectedCell([r, c]);
-    if (!isTimerActive && grid.some(row => row.some(cell => cell !== 0))) {
+    if (!isTimerActive && grid.some((row: number[]) => row.some((cell: number) => cell !== 0))) {
       setIsTimerActive(true);
     }
   };
@@ -220,7 +289,7 @@ export default function GamePage() {
     if (initialGrid[r][c] !== 0) return;
     
     if (isPencilMode && val !== 0) {
-      const newMarks = [...pencilMarks.map(row => row.map(cell => new Set(cell)))];
+      const newMarks = [...pencilMarks.map((row: Set<number>[]) => row.map((cell: Set<number>) => new Set(cell)))];
       if (newMarks[r][c].has(val)) {
         newMarks[r][c].delete(val);
       } else {
@@ -231,23 +300,23 @@ export default function GamePage() {
     }
 
     // Check if the entered number is invalid
-    if (val !== 0 && !isValid(grid, r, c, val)) {
-      setMistakes(prev => prev + 1);
+    if (val !== 0 && !isValid(grid, r, c, val, sudokuSize)) {
+      setMistakes((prev: number) => prev + 1);
     }
 
-    setHistory(prev => [...prev, grid.map(row => [...row])]);
+    setHistory((prev: Grid[]) => [...prev, grid.map((row: number[]) => [...row])]);
     setRedoStack([]);
     
-    const newGrid = grid.map((row, ri) => 
-      row.map((cell, ci) => (ri === r && ci === c ? val : cell))
+    const newGrid = grid.map((row: number[], ri: number) => 
+      row.map((cell: number, ci: number) => (ri === r && ci === c ? val : cell))
     );
     setGrid(newGrid);
 
     // Check if solved
-    if (newGrid.every(row => row.every(cell => cell !== 0))) {
+    if (newGrid.every((row: number[]) => row.every((cell: number) => cell !== 0))) {
       const flat = newGrid.flat();
-      const isAllValid = newGrid.every((row, ri) => 
-        row.every((cell, ci) => {
+      const isAllValid = newGrid.every((row: number[], ri: number) => 
+        row.every((cell: number, ci: number) => {
           const temp = newGrid[ri][ci];
           newGrid[ri][ci] = 0;
           const v = isValid(newGrid, ri, ci, temp);
@@ -293,17 +362,17 @@ export default function GamePage() {
   const undo = () => {
     if (history.length === 0) return;
     const prev = history[history.length - 1];
-    setRedoStack(prevRedo => [grid.map(row => [...row]), ...prevRedo]);
+    setRedoStack((prevRedo: Grid[]) => [grid.map((row: number[]) => [...row]), ...prevRedo]);
     setGrid(prev);
-    setHistory(prevHistory => prevHistory.slice(0, -1));
+    setHistory((prevHistory: Grid[]) => prevHistory.slice(0, -1));
   };
 
   const redo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[0];
-    setHistory(prevHistory => [...prevHistory, grid.map(row => [...row])]);
+    setHistory((prevHistory: Grid[]) => [...prevHistory, grid.map((row: number[]) => [...row])]);
     setGrid(next);
-    setRedoStack(prevRedo => prevRedo.slice(1));
+    setRedoStack((prevRedo: Grid[]) => prevRedo.slice(1));
   };
 
   const resetBoard = () => {
@@ -330,7 +399,7 @@ export default function GamePage() {
   };
 
   const generateNew = (diff: Difficulty) => {
-    const { puzzle, solution: sol } = generatePuzzle(diff);
+    const { puzzle, solution: sol } = generatePuzzle(diff, sudokuSize);
     setGrid(puzzle);
     setInitialGrid(puzzle);
     setSolution(sol);
@@ -345,19 +414,38 @@ export default function GamePage() {
   };
 
   const solveInstantly = () => {
-    const workingGrid = grid.map(row => [...row]);
-    if (solveSudoku(workingGrid)) {
-      setGrid(workingGrid);
-      setTimer(0);
-      setIsTimerActive(false);
+    // Make a deep copy to avoid modifying the current grid
+    const workingGrid = grid.map((row: number[]) => [...row]);
+    
+    // Validate that the puzzle can actually be solved
+    if (workingGrid.every((row: number[], ri: number) => 
+      row.every((cell: number, ci: number) => {
+        if (cell === 0) return true;
+        const temp = workingGrid[ri][ci];
+        workingGrid[ri][ci] = 0;
+        const v = isValid(workingGrid, ri, ci, temp, sudokuSize);
+        workingGrid[ri][ci] = temp;
+        return v;
+      })
+    )) {
+      // Current state is valid, now try to solve
+      const solveGrid = workingGrid.map((r: number[]) => [...r]);
+      if (solveSudoku(solveGrid, sudokuSize)) {
+        setGrid(solveGrid);
+        setTimer(0);
+        setIsTimerActive(false);
+      } else {
+        setError("This puzzle is unsolvable!");
+      }
     } else {
-      setError("This puzzle is unsolvable!");
+      setError("Current board state has conflicts. Fix the conflicts before solving.");
     }
   };
 
-  const watchSolve = async () => {
+  const watchSolve = useCallback(async () => {
     if (isSolving) {
       solveAbortRef.current = true;
+      activeSolveSizeRef.current = null;
       setIsSolving(false);
       return;
     }
@@ -366,57 +454,101 @@ export default function GamePage() {
     setIsTimerActive(true);
     setIsSolving(true);
     solveAbortRef.current = false;
+    activeSolveSizeRef.current = sudokuSize; // Track which size this solve is for
     const workingGrid = grid.map(row => [...row]);
+    const initialSize = sudokuSize; // Capture size at solve start
     
     const step = async (g: Grid): Promise<boolean> => {
-      if (solveAbortRef.current) return false;
+      // Stop if size changed or abort requested
+      if (solveAbortRef.current || activeSolveSizeRef.current !== initialSize) return false;
       
-      const empty = findEmpty(g);
+      const empty = findEmpty(g, initialSize);
       if (!empty) return true;
       
       const [r, c] = empty;
-      for (let num = 1; num <= 9; num++) {
-        if (solveAbortRef.current) return false;
+      for (let num = 1; num <= initialSize; num++) {
+        if (solveAbortRef.current || activeSolveSizeRef.current !== initialSize) return false;
         
-        if (isValid(g, r, c, num)) {
+        if (isValid(g, r, c, num, initialSize)) {
           g[r][c] = num;
-          setGrid(g.map(row => [...row]));
+          // Only update UI if size hasn't changed
+          if (activeSolveSizeRef.current === initialSize) {
+            setGrid(g.map(row => [...row]));
+          }
           
           // Delay
           await new Promise(resolve => setTimeout(resolve, solveSpeed));
           
-          while (isPaused && !solveAbortRef.current) {
+          while (isPaused && !solveAbortRef.current && activeSolveSizeRef.current === initialSize) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
 
           if (await step(g)) return true;
           g[r][c] = 0;
-          setGrid(g.map(row => [...row]));
+          // Only update UI if size hasn't changed
+          if (activeSolveSizeRef.current === initialSize) {
+            setGrid(g.map(row => [...row]));
+          }
         }
       }
       return false;
     };
 
-    if (await step(workingGrid)) {
-      setIsTimerActive(false);
-    } else if (!solveAbortRef.current) {
-      setError("Unsolvable puzzle!");
+    try {
+      const solved = await step(workingGrid);
+      // Only update UI if size is still the same
+      if (activeSolveSizeRef.current === initialSize) {
+        if (solved) {
+          setIsTimerActive(false);
+        } else if (!solveAbortRef.current) {
+          setError("Unsolvable puzzle!");
+        }
+      }
+    } catch (err) {
+      console.error('Solve error:', err);
+      if (activeSolveSizeRef.current === initialSize) {
+        setError('An error occurred while solving');
+      }
+    } finally {
+      if (activeSolveSizeRef.current === initialSize) {
+        setIsSolving(false);
+      }
+      activeSolveSizeRef.current = null;
     }
-    setIsSolving(false);
-  };
+  }, [isSolving, grid, sudokuSize, solveSpeed, isPaused]);
 
   const giveHint = () => {
-    const workingGrid = grid.map(row => [...row]);
-    const sol = [...workingGrid.map(r => [...r])];
-    if (solveSudoku(sol)) {
+    const workingGrid = grid.map((row: number[]) => [...row]);
+    const sol = workingGrid.map((r: number[]) => [...r]);
+    
+    // Validate current grid state
+    const isValid_current = workingGrid.every((row: number[], ri: number) => 
+      row.every((cell: number, ci: number) => {
+        if (cell === 0) return true;
+        const temp = workingGrid[ri][ci];
+        workingGrid[ri][ci] = 0;
+        const v = isValid(workingGrid, ri, ci, temp, sudokuSize);
+        workingGrid[ri][ci] = temp;
+        return v;
+      })
+    );
+
+    if (!isValid_current) {
+      setError("Current board state has conflicts. Fix them before getting a hint.");
+      return;
+    }
+
+    if (solveSudoku(sol, sudokuSize)) {
       const emptyCells: [number, number][] = [];
-      grid.forEach((row, r) => row.forEach((cell, c) => {
+      grid.forEach((row: number[], r: number) => row.forEach((cell: number, c: number) => {
         if (cell === 0) emptyCells.push([r, c]);
       }));
       
       if (emptyCells.length > 0) {
         const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
         updateCell(r, c, sol[r][c]);
+      } else {
+        setError("Puzzle is already complete!");
       }
     } else {
       setError("Cannot provide hint for unsolvable puzzle.");
@@ -424,12 +556,12 @@ export default function GamePage() {
   };
 
   const validateBoard = () => {
-    const isAllValid = grid.every((row, ri) => 
-      row.every((cell, ci) => {
+    const isAllValid = grid.every((row: number[], ri: number) => 
+      row.every((cell: number, ci: number) => {
         if (cell === 0) return true;
         const temp = grid[ri][ci];
         grid[ri][ci] = 0;
-        const v = isValid(grid, ri, ci, temp);
+        const v = isValid(grid, ri, ci, temp, sudokuSize);
         grid[ri][ci] = temp;
         return v;
       })
@@ -444,23 +576,73 @@ export default function GamePage() {
 
   // --- Advanced Image Processing with Grid Detection ---
 
+  // Preprocess image for better OCR: enhance contrast and reduce noise
+  const preprocessImageForOCR = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const ctx = canvas.getContext('2d')!;
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Calculate histogram for contrast stretching
+    const histogram = new Uint32Array(256);
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
+      histogram[gray]++;
+    }
+
+    // Find min/max for stretching (ignore extreme outliers)
+    let minBrightness = 0, maxBrightness = 255;
+    let pixelCount = 0;
+    for (let i = 0; i < 256; i++) {
+      if (histogram[i] > 0) {
+        if (pixelCount === 0) minBrightness = i;
+        maxBrightness = i;
+        pixelCount += histogram[i];
+      }
+    }
+
+    // Apply contrast stretching (more aggressive)
+    const range = Math.max(1, maxBrightness - minBrightness);
+    const stretchedData = new Uint8ClampedArray(data.length);
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+      // Stretch to full 0-255 range
+      const stretched = ((gray - minBrightness) / range) * 255;
+      // Use adaptive threshold (median of stretched image)
+      const threshold = stretched > 180 ? 255 : 0;
+      stretchedData[i] = stretchedData[i+1] = stretchedData[i+2] = threshold;
+      stretchedData[i+3] = data[i+3]; // Preserve alpha
+    }
+
+    ctx.putImageData(new ImageData(stretchedData, canvas.width, canvas.height), 0, 0);
+    return canvas;
+  };
+
   // Detect grid lines and extract Sudoku cells
-  const detectGridAndExtractCells = (imageSrc: string): Promise<string[][]> => {
+  const detectGridAndExtractCells = (imageSrc: string, gridSize: SudokuSize = 9): Promise<{ cellImages: string[][]; detectedSize: SudokuSize }> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      const timeout = setTimeout(() => reject(new Error("Grid detection timeout")), 10000);
+      const timeout = setTimeout(() => reject(new Error("Grid detection timeout")), 15000);
 
       img.onload = () => {
         clearTimeout(timeout);
         try {
-          // Step 1: Create main canvas and load image
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+          // Step 1: Resize image if too large (improves performance)
+          const maxDim = 2000;
+          let canvas = document.createElement('canvas');
+          if (img.width > maxDim || img.height > maxDim) {
+            const scale = Math.min(maxDim / img.width, maxDim / img.height);
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+          } else {
+            canvas.width = img.width;
+            canvas.height = img.height;
+          }
+          
           const ctx = canvas.getContext('2d')!;
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          // Step 2: Convert to grayscale and detect edges
+          // Step 2: Convert to grayscale
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
           const gray = new Uint8ClampedArray(canvas.width * canvas.height);
@@ -469,8 +651,10 @@ export default function GamePage() {
             gray[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           }
 
-          // Step 3: Apply Sobel edge detection
+          // Step 3: Apply Sobel edge detection with adaptive threshold
           const edges = new Uint8ClampedArray(canvas.width * canvas.height);
+          let maxEdge = 0;
+          
           for (let y = 1; y < canvas.height - 1; y++) {
             for (let x = 1; x < canvas.width - 1; x++) {
               const idx = y * canvas.width + x;
@@ -479,10 +663,14 @@ export default function GamePage() {
               const gy = -gray[(y-1)*canvas.width+(x-1)] - 2*gray[(y-1)*canvas.width+x] - gray[(y-1)*canvas.width+(x+1)]
                        + gray[(y+1)*canvas.width+(x-1)] + 2*gray[(y+1)*canvas.width+x] + gray[(y+1)*canvas.width+(x+1)];
               edges[idx] = Math.sqrt(gx*gx + gy*gy);
+              if (edges[idx] > maxEdge) maxEdge = edges[idx];
             }
           }
 
-          // Step 4: Find horizontal and vertical lines (grid lines)
+          // Adaptive threshold (50% of max detected edge)
+          const edgeThreshold = Math.max(20, maxEdge * 0.3);
+
+          // Step 4: Find horizontal and vertical lines with improved detection
           const hLines: number[] = [];
           const vLines: number[] = [];
 
@@ -490,22 +678,24 @@ export default function GamePage() {
           for (let y = 0; y < canvas.height; y++) {
             let lineStrength = 0;
             for (let x = 0; x < canvas.width; x++) {
-              if (edges[y * canvas.width + x] > 50) lineStrength++;
+              if (edges[y * canvas.width + x] > edgeThreshold) lineStrength++;
             }
-            if (lineStrength > canvas.width * 0.6) hLines.push(y);
+            if (lineStrength > canvas.width * 0.5) hLines.push(y);
           }
 
           // Find vertical lines
           for (let x = 0; x < canvas.width; x++) {
             let lineStrength = 0;
             for (let y = 0; y < canvas.height; y++) {
-              if (edges[y * canvas.width + x] > 50) lineStrength++;
+              if (edges[y * canvas.width + x] > edgeThreshold) lineStrength++;
             }
-            if (lineStrength > canvas.height * 0.6) vLines.push(x);
+            if (lineStrength > canvas.height * 0.5) vLines.push(x);
           }
 
-          // Step 5: Cluster lines to find grid boundaries
-          const clusterLines = (lines: number[], spacing: number = 10): number[] => {
+          // Step 5: Cluster lines with adaptive spacing based on image size
+          const adaptiveSpacing = Math.max(canvas.height / 30, canvas.width / 30);
+          
+          const clusterLines = (lines: number[], spacing: number): number[] => {
             if (lines.length === 0) return [];
             const clustered: number[] = [];
             let currentCluster = [lines[0]];
@@ -524,42 +714,76 @@ export default function GamePage() {
             return clustered;
           };
 
-          const hClusteredLines = clusterLines(hLines);
-          const vClusteredLines = clusterLines(vLines);
+          const hClusteredLines = clusterLines(hLines, adaptiveSpacing);
+          const vClusteredLines = clusterLines(vLines, adaptiveSpacing);
 
           console.log('Horizontal lines found:', hClusteredLines.length);
           console.log('Vertical lines found:', vClusteredLines.length);
 
+          // Auto-detect grid size from number of lines
+          let detectedSize: SudokuSize = gridSize;
+          const lineCount = Math.max(hClusteredLines.length, vClusteredLines.length);
+          if (lineCount >= 9 && lineCount <= 11) {
+            detectedSize = 9;
+          } else if (lineCount >= 6 && lineCount <= 8) {
+            detectedSize = 6;
+          } else if (lineCount >= 4 && lineCount <= 6) {
+            detectedSize = 4;
+          }
+          console.log('Detected grid size:', detectedSize);
+
+          const gridLines = detectedSize + 1; // 4x4 needs 5 lines, 6x6 needs 7 lines, 9x9 needs 10 lines
+          const gridDivisions = detectedSize;
+          
           // If we can't find grid, use fallback division
-          let rowBoundaries = hClusteredLines.length >= 10 ? hClusteredLines : 
-            Array.from({length: 10}, (_, i) => Math.round(i * canvas.height / 9));
-          let colBoundaries = vClusteredLines.length >= 10 ? vClusteredLines : 
-            Array.from({length: 10}, (_, i) => Math.round(i * canvas.width / 9));
+          let rowBoundaries: number[];
+          let colBoundaries: number[];
+          
+          if (hClusteredLines.length >= gridLines) {
+            // Use detected lines, ensure we have exactly gridLines
+            rowBoundaries = hClusteredLines.slice(0, gridLines);
+          } else {
+            // Fallback: divide uniformly
+            rowBoundaries = Array.from({length: gridLines}, (_, i) => Math.round(i * canvas.height / gridDivisions));
+          }
+          
+          if (vClusteredLines.length >= gridLines) {
+            colBoundaries = vClusteredLines.slice(0, gridLines);
+          } else {
+            colBoundaries = Array.from({length: gridLines}, (_, i) => Math.round(i * canvas.width / gridDivisions));
+          }
 
-          // Step 6: Extract cell images (9x9 grid)
+          // Ensure boundaries are sorted
+          rowBoundaries = rowBoundaries.sort((a, b) => a - b);
+          colBoundaries = colBoundaries.sort((a, b) => a - b);
+
+          // Step 6: Extract and preprocess cell images (size x size grid)
           const cellImages: string[][] = [];
-          for (let row = 0; row < 9; row++) {
+          for (let row = 0; row < detectedSize; row++) {
             const cellRow: string[] = [];
-            const y1 = rowBoundaries[row];
-            const y2 = rowBoundaries[row + 1] || canvas.height;
+            const y1 = Math.max(0, rowBoundaries[row]);
+            const y2 = Math.min(canvas.height, rowBoundaries[row + 1] || canvas.height);
 
-            for (let col = 0; col < 9; col++) {
-              const x1 = colBoundaries[col];
-              const x2 = colBoundaries[col + 1] || canvas.width;
+            for (let col = 0; col < detectedSize; col++) {
+              const x1 = Math.max(0, colBoundaries[col]);
+              const x2 = Math.min(canvas.width, colBoundaries[col + 1] || canvas.width);
 
               // Extract cell
               const cellCanvas = document.createElement('canvas');
-              cellCanvas.width = x2 - x1;
-              cellCanvas.height = y2 - y1;
+              cellCanvas.width = Math.max(1, x2 - x1);
+              cellCanvas.height = Math.max(1, y2 - y1);
               const cellCtx = cellCanvas.getContext('2d')!;
-              cellCtx.drawImage(canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, x2 - x1, y2 - y1);
+              cellCtx.drawImage(canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, cellCanvas.width, cellCanvas.height);
 
+              // Preprocess cell for OCR
+              preprocessImageForOCR(cellCanvas);
+              
               cellRow.push(cellCanvas.toDataURL());
             }
             cellImages.push(cellRow);
           }
 
-          resolve(cellImages);
+          resolve({ cellImages, detectedSize });
         } catch (err) {
           clearTimeout(timeout);
           reject(err);
@@ -575,7 +799,7 @@ export default function GamePage() {
     });
   };
 
-  // Extract number from individual cell
+  // Extract number from individual cell with better OCR
   const extractNumberFromCell = async (cellImage: string): Promise<number> => {
     try {
       const { data: { text } } = await Tesseract.recognize(
@@ -583,11 +807,52 @@ export default function GamePage() {
         'eng',
         { logger: () => {} } // Silent
       );
-      const num = parseInt(text.match(/\d/)?.[0] || '0');
+      
+      // Extract first digit (1-9) found, ignore 0 and other characters
+      const match = text.match(/[1-9]/);
+      const num = match ? parseInt(match[0]) : 0;
       return num >= 1 && num <= 9 ? num : 0;
-    } catch {
+    } catch (err) {
+      console.error('OCR error:', err);
       return 0;
     }
+  };
+
+  // Validate puzzle solvability and uniqueness
+  const validatePuzzle = (puzzle: Grid, size: SudokuSize = sudokuSize): { valid: boolean; message: string } => {
+    const cellsFilled = puzzle.flat().filter((n: number) => n !== 0).length;
+    const minCluesMap: Record<SudokuSize, number> = { 4: 3, 6: 6, 9: 8 };
+    const minClues = minCluesMap[size];
+    
+    if (cellsFilled < minClues) {
+      return { 
+        valid: false, 
+        message: `Only found ${cellsFilled} numbers. Please provide at least ${minClues} starting numbers.` 
+      };
+    }
+
+    // Check if current state is valid (no conflicting numbers)
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (puzzle[r][c] !== 0) {
+          const temp = puzzle[r][c];
+          puzzle[r][c] = 0;
+          if (!isValid(puzzle, r, c, temp, size)) {
+            puzzle[r][c] = temp;
+            return { valid: false, message: 'Puzzle has conflicting clues!' };
+          }
+          puzzle[r][c] = temp;
+        }
+      }
+    }
+
+    // Try to solve to verify solvability
+    const testGrid = puzzle.map((row: number[]) => [...row]);
+    if (!solveSudoku(testGrid, size)) {
+      return { valid: false, message: 'Puzzle appears to be unsolvable.' };
+    }
+
+    return { valid: true, message: 'Puzzle validated successfully!' };
   };
 
   const handleImageUpload = async (file: File) => {
@@ -599,18 +864,24 @@ export default function GamePage() {
       setUploadedImage(base64);
       
       try {
-        // Step 1: Detect grid and extract cell images
+        // Step 1: Detect grid and extract cell images (auto-detects grid size)
         console.log('Starting grid detection...');
-        const cellImages = await detectGridAndExtractCells(base64);
-        console.log('Grid detected. Extracted cells:', cellImages.length + 'x' + cellImages[0].length);
+        const { cellImages, detectedSize } = await detectGridAndExtractCells(base64, sudokuSize);
+        console.log('Grid detected. Size:', detectedSize, 'Extracted cells:', cellImages.length + 'x' + (cellImages[0]?.length || 0));
+
+        // Switch to detected size if different
+        if (detectedSize !== sudokuSize) {
+          console.log('Switching grid size from', sudokuSize, 'to', detectedSize);
+          setSudokuSize(detectedSize);
+        }
 
         // Step 2: OCR each cell individually
         const grid: Grid = [];
         let cellsFilled = 0;
         
-        for (let row = 0; row < 9; row++) {
+        for (let row = 0; row < detectedSize; row++) {
           const gridRow: number[] = [];
-          for (let col = 0; col < 9; col++) {
+          for (let col = 0; col < detectedSize; col++) {
             const num = await extractNumberFromCell(cellImages[row][col]);
             gridRow.push(num);
             if (num !== 0) cellsFilled++;
@@ -619,19 +890,27 @@ export default function GamePage() {
         }
 
         console.log('OCR complete. Cells filled:', cellsFilled);
+        console.log('Grid:', grid);
 
-        if (cellsFilled < 17) {
-          throw new Error(`Only found ${cellsFilled} numbers. Sudoku needs at least 17 clues.`);
+        // Step 3: Validate the extracted puzzle (using detected size, not state)
+        const validation = validatePuzzle(grid, detectedSize);
+        if (!validation.valid) {
+          throw new Error(validation.message);
         }
 
+        // Success - load the puzzle
         setGrid(grid);
         setInitialGrid(grid);
         setTimer(0);
         setIsTimerActive(true);
         setDifficulty(null);
         setMistakes(0);
+        setError(null);
+        console.log('Puzzle loaded successfully! ✓');
       } catch (err: any) {
-        setError(err.message || "Failed to scan Sudoku. Try a clearer photo with visible grid lines.");
+        console.error('Image processing error:', err);
+        setError(err.message || "Failed to scan Sudoku. Try a clearer photo with visible grid lines and all numbers clearly visible.");
+        setUploadedImage(null);
       } finally {
         setIsScanning(false);
       }
@@ -664,14 +943,17 @@ export default function GamePage() {
   };
 
   const getCellStatus = (r: number, c: number) => {
+    // Guard against out-of-bounds access
+    if (r < 0 || c < 0 || r >= sudokuSize || c >= sudokuSize || !grid[r]) return 'empty';
+    
     const val = grid[r][c];
     if (val === 0) return 'empty';
-    if (initialGrid[r][c] !== 0) return 'initial';
+    if (initialGrid[r] && initialGrid[r][c] !== 0) return 'initial';
     
     // Check validity
     const temp = grid[r][c];
     grid[r][c] = 0;
-    const valid = isValid(grid, r, c, temp);
+    const valid = isValid(grid, r, c, temp, sudokuSize);
     grid[r][c] = temp;
     
     if (!valid) return 'invalid';
@@ -683,11 +965,19 @@ export default function GamePage() {
     if (!selectedCell) return false;
     const [sr, sc] = selectedCell;
     if (r === sr && c === sc) return false;
-    return r === sr || c === sc || (Math.floor(r / 3) === Math.floor(sr / 3) && Math.floor(c / 3) === Math.floor(sc / 3));
+    
+    const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+      4: { rows: 2, cols: 2 }, 
+      6: { rows: 2, cols: 3 }, 
+      9: { rows: 3, cols: 3 } 
+    };
+    const { rows: boxRows, cols: boxCols } = boxSizeMap[sudokuSize];
+    
+    return r === sr || c === sc || (Math.floor(r / boxRows) === Math.floor(sr / boxRows) && Math.floor(c / boxCols) === Math.floor(sc / boxCols));
   };
 
   const remainingCells = useMemo(() => {
-    return grid.flat().filter(c => c === 0).length;
+    return grid.flat().filter((c: number) => c === 0).length;
   }, [grid]);
 
   // --- Render ---
@@ -727,6 +1017,28 @@ export default function GamePage() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Size Selector - Before Time */}
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10 shadow-sm'}`}>
+              <label className="text-[10px] uppercase tracking-widest opacity-60 font-semibold whitespace-nowrap">Grid Size</label>
+              <select
+                value={sudokuSize}
+                onChange={(e) => setSudokuSize(parseInt(e.target.value) as SudokuSize)}
+                className={`px-3 py-2 rounded-lg border font-bold transition-all appearance-none cursor-pointer ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white hover:bg-slate-800 shadow-lg' : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-50 shadow-md'}`}
+                style={{
+                  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${isDarkMode ? 'white' : 'black'}' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 0.5rem center',
+                  backgroundSize: '1.5em 1.5em',
+                  paddingRight: '2.5rem'
+                }}
+              >
+                <option value={4} style={{ backgroundColor: isDarkMode ? '#1e293b' : 'white', color: isDarkMode ? 'white' : 'black' }}>4×4</option>
+                <option value={6} style={{ backgroundColor: isDarkMode ? '#1e293b' : 'white', color: isDarkMode ? 'white' : 'black' }}>6×6</option>
+                <option value={9} style={{ backgroundColor: isDarkMode ? '#1e293b' : 'white', color: isDarkMode ? 'white' : 'black' }}>9×9</option>
+              </select>
+            </div>
+
+            {/* Stats */}
             <div className={`flex items-center gap-6 px-6 py-3 rounded-2xl backdrop-blur-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10 shadow-sm'}`}>
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-widest opacity-50 mb-1">Time</p>
@@ -776,28 +1088,43 @@ export default function GamePage() {
           <div className="lg:col-span-7 flex flex-col items-center">
             
             {/* Sudoku Grid */}
-            <div 
+            <motion.div
+              key={`grid-${sudokuSize}`}
+              initial={{ opacity: 0, scale: 0.95, rotateX: -20 }}
+              animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut', type: 'spring', bounce: 0.3 }}
               className={`relative p-1 rounded-2xl border-4 transition-all duration-500 ${isDarkMode ? 'bg-slate-800/50 border-slate-800 shadow-2xl shadow-black/20' : 'bg-white border-slate-200 shadow-xl'}`}
               onKeyDown={handleKeyDown}
               tabIndex={0}
             >
-              <div className="grid grid-cols-9 gap-0.5 bg-slate-700/30 overflow-hidden rounded-lg">
+              <motion.div 
+                layout
+                className={`grid gap-0.5 bg-slate-700/30 overflow-hidden rounded-lg`}
+                style={{ gridTemplateColumns: `repeat(${sudokuSize}, minmax(0, 1fr))` }}
+                transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+              >
                 {grid.map((row, r) => row.map((cell, c) => {
                   const status = getCellStatus(r, c);
                   const isSel = selectedCell?.[0] === r && selectedCell?.[1] === c;
                   const isRel = isRelated(r, c);
-                  const isBoxEdgeRight = (c + 1) % 3 === 0 && c < 8;
-                  const isBoxEdgeBottom = (r + 1) % 3 === 0 && r < 8;
+                  const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+                    4: { rows: 2, cols: 2 }, 
+                    6: { rows: 2, cols: 3 }, 
+                    9: { rows: 3, cols: 3 } 
+                  };
+                  const { rows: boxRows, cols: boxCols } = boxSizeMap[sudokuSize];
+                  const isBoxEdgeRight = (c + 1) % boxCols === 0 && c < sudokuSize - 1;
+                  const isBoxEdgeBottom = (r + 1) % boxRows === 0 && r < sudokuSize - 1;
 
                   return (
                     <motion.div
                       key={`${r}-${c}`}
                       onClick={() => handleCellClick(r, c)}
-                      whileHover={{ scale: 1.05, zIndex: 20 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (r * 9 + c) * 0.005 }}
+                      whileHover={{ scale: 1.08, zIndex: 20, boxShadow: '0 0 20px rgba(255,255,255,0.1)' }}
+                      whileTap={{ scale: 0.92 }}
+                      initial={{ opacity: 0, scale: 0.6, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: (r * sudokuSize + c) * 0.01, duration: 0.4, type: 'spring', stiffness: 300, damping: 20 }}
                       className={`
                         relative w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center text-xl sm:text-2xl font-bold cursor-pointer transition-all duration-200
                         ${isDarkMode ? 'bg-[#1e293b]' : 'bg-white'}
@@ -818,8 +1145,11 @@ export default function GamePage() {
                       
                       {/* Pencil Marks */}
                       {cell === 0 && pencilMarks[r][c].size > 0 && (
-                        <div className="absolute inset-0 grid grid-cols-3 p-0.5 pointer-events-none">
-                          {[1,2,3,4,5,6,7,8,9].map(n => (
+                        <div 
+                          className="absolute inset-0 grid p-0.5 pointer-events-none"
+                          style={{ gridTemplateColumns: `repeat(${sudokuSize === 4 ? 2 : sudokuSize === 6 ? 3 : 3}, minmax(0, 1fr))` }}
+                        >
+                          {Array.from({ length: sudokuSize }, (_, i) => i + 1).map(n => (
                             <span key={n} className="text-[8px] sm:text-[10px] leading-none opacity-40 flex items-center justify-center">
                               {pencilMarks[r][c].has(n) ? n : ''}
                             </span>
@@ -829,12 +1159,12 @@ export default function GamePage() {
                     </motion.div>
                   );
                 }))}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* Number Pad */}
-            <div className="mt-8 grid grid-cols-11 gap-2 w-full max-w-md">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <div className="mt-8 grid gap-2 w-full max-w-md" style={{ gridTemplateColumns: `repeat(${sudokuSize + 2}, minmax(0, 1fr))` }}>
+              {Array.from({ length: sudokuSize }, (_, i) => i + 1).map((num: number) => (
                 <button
                   key={num}
                   onClick={() => selectedCell && updateCell(selectedCell[0], selectedCell[1], num)}
@@ -1035,7 +1365,6 @@ export default function GamePage() {
               <span className="text-xs">to Erase</span>
             </div>
           </div>
-          <p className="text-xs font-medium">Built with React & Firebase</p>
         </footer>
 
       </div>

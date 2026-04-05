@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Home } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, LineController, Filler } from 'chart.js';
 import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats } from '../utils/statsManager';
+import { HeatmapGrid } from '../components/HeatmapGrid';
+import { HeatmapLegend } from '../components/HeatmapLegend';
 
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, LineController, Filler);
@@ -23,20 +25,25 @@ export default function DashboardPage() {
     avgTime: 0,
     bestStreak: 0
   });
+  const [heatmapData, setHeatmapData] = useState<Record<string, any>>({});
   const chartRef = useRef<Chart | null>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
+    console.log('🔐 Dashboard auth effect running');
     const email = localStorage.getItem('user-email');
     if (!email) {
+      console.log('❌ No user email in localStorage, redirecting to login');
       navigate('/login');
       return;
     }
+    console.log('✅ User email found:', email);
     setUserEmail(email);
 
     // Get current user ID from auth
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        console.log('✅ Auth user found:', user.uid);
         setUserId(user.uid);
         
         // Ensure user stats are initialized
@@ -49,8 +56,11 @@ export default function DashboardPage() {
         // Fetch user stats from Firestore or localStorage
         const userStats = await fetchUserStats(user.uid);
         if (userStats) {
+          console.log('✅ User stats fetched:', userStats);
           setStats(userStats);
         }
+      } else {
+        console.log('❌ No auth user found');
       }
     });
 
@@ -63,22 +73,38 @@ export default function DashboardPage() {
 
       // Load real data and create visualizations
       const loadData = async () => {
-        if (!userId) return;
+        console.log('📊 loadData function called');
+        if (!userId) {
+          console.log('❌ No userId available');
+          return;
+        }
 
         try {
+          console.log('📥 Fetching game history for userId:', userId);
           const gameHistory = await fetchGameHistoryForHeatmap(userId);
+          console.log('✅ Game history fetched:', gameHistory);
+          
           const ratingHistory = await fetchRatingHistoryForChart(userId);
+          console.log('✅ Rating history fetched:', ratingHistory);
 
-          createHeatmap(gameHistory);
+          // Transform game history to heatmap format
+          const transformedData: Record<string, any> = {};
+          Object.entries(gameHistory).forEach(([date, count]) => {
+            if ((count as number) > 0) {
+              transformedData[date] = { count: count as number };
+            }
+          });
+          console.log('🎨 Transformed heatmap data:', transformedData);
+          setHeatmapData(transformedData);
 
           // Create chart using setTimeout to ensure DOM is ready
           setTimeout(() => {
             createProgressChart(ratingHistory);
           }, 0);
         } catch (err) {
-          console.error('Error loading dashboard data:', err);
-          // Fallback to empty visualizations
-          createHeatmap({});
+          console.error('❌ Error loading dashboard data:', err);
+          // Fallback to empty heatmap
+          setHeatmapData({});
           setTimeout(() => {
             createProgressChart([]);
           }, 0);
@@ -86,7 +112,10 @@ export default function DashboardPage() {
       };
 
       if (userId) {
+        console.log('🎯 userId available, calling loadData');
         loadData();
+      } else {
+        console.log('⏳ Waiting for userId...');
       }
     }
 
@@ -98,103 +127,6 @@ export default function DashboardPage() {
     };
   }, [userId]);
 
-  const createHeatmap = (data: Record<string, number> = {}) => {
-    const container = document.getElementById('heatmapContainer');
-    if (!container) return;
-
-    const today = new Date();
-    container.innerHTML = ''; // Clear container
-
-    // Create wrapper
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
-
-    // Create grid
-    const grid = document.createElement('div');
-    grid.style.cssText = 'display: flex; gap: 4px; align-items: flex-start; flex-wrap: wrap; max-width: 100%;';
-
-    // 12 weeks (columns)
-    for (let week = 0; week < 12; week++) {
-      const weekCol = document.createElement('div');
-      weekCol.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
-
-      // 7 days (rows)
-      for (let day = 0; day < 7; day++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - (week * 7 + day));
-        const key = date.toISOString().split('T')[0];
-        const count = data[key] || 0;
-
-        const box = document.createElement('div');
-        box.style.width = '14px';
-        box.style.height = '14px';
-        box.style.borderRadius = '2px';
-        box.style.border = '1px solid rgba(255,255,255,0.1)';
-        box.style.cursor = 'pointer';
-        box.style.transition = 'all 0.2s ease';
-
-        // GitHub green colors
-        if (count === 0) {
-          box.style.backgroundColor = '#0d1117';
-        } else if (count === 1) {
-          box.style.backgroundColor = '#0e4429';
-        } else if (count <= 2) {
-          box.style.backgroundColor = '#006d32';
-        } else if (count <= 4) {
-          box.style.backgroundColor = '#26a641';
-        } else {
-          box.style.backgroundColor = '#39d353';
-        }
-
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        box.title = `${dayNames[date.getDay()]} ${date.toLocaleDateString()}: ${count} game${count !== 1 ? 's' : ''}`;
-
-        box.addEventListener('mouseenter', () => {
-          box.style.transform = 'scale(1.3)';
-          box.style.boxShadow = '0 0 8px rgba(57, 211, 83, 0.6)';
-        });
-
-        box.addEventListener('mouseleave', () => {
-          box.style.transform = 'scale(1)';
-          box.style.boxShadow = 'none';
-        });
-
-        weekCol.appendChild(box);
-      }
-
-      grid.appendChild(weekCol);
-    }
-
-    wrapper.appendChild(grid);
-
-    // Add month labels
-    const monthLabels = document.createElement('div');
-    monthLabels.style.cssText = 'display: flex; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px;';
-    const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-    months.forEach(month => {
-      const label = document.createElement('div');
-      label.textContent = month;
-      label.style.cssText = 'width: 14px; text-align: center; font-weight: 500;';
-      monthLabels.appendChild(label);
-    });
-    wrapper.appendChild(monthLabels);
-
-    // Add legend
-    const legend = document.createElement('div');
-    legend.style.cssText = 'display: flex; gap: 8px; align-items: center; font-size: 11px; margin-top: 8px; flex-wrap: wrap;';
-    legend.innerHTML = `
-      <span style="color: rgba(255,255,255,0.5);">Less</span>
-      <div style="width: 14px; height: 14px; background-color: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
-      <div style="width: 14px; height: 14px; background-color: #0e4429; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
-      <div style="width: 14px; height: 14px; background-color: #006d32; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
-      <div style="width: 14px; height: 14px; background-color: #26a641; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
-      <div style="width: 14px; height: 14px; background-color: #39d353; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;"></div>
-      <span style="color: rgba(255,255,255,0.5);">More</span>
-    `;
-    wrapper.appendChild(legend);
-
-    container.appendChild(wrapper);
-  };
 
   const createProgressChart = (ratingHistory: any[] = []) => {
     const ctx = document.getElementById('progressChart') as HTMLCanvasElement;
@@ -381,8 +313,11 @@ export default function DashboardPage() {
 
         {/* Heatmap */}
         <div className="bg-white/4 border border-white/10 rounded-2xl p-8 mb-8">
-          <h2 className="text-lg font-bold text-white/80 mb-6">Activity Heatmap (Last 12 Weeks)</h2>
-          <div id="heatmapContainer" />
+          <h2 className="text-lg font-bold text-white/80 mb-6">Activity Heatmap (Last 12 Months)</h2>
+          <div className="space-y-4">
+            <HeatmapGrid heatmapData={heatmapData} />
+            <HeatmapLegend />
+          </div>
         </div>
 
         {/* Chart */}
