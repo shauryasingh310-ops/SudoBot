@@ -1,185 +1,97 @@
-# SudoBot - AI-Powered Sudoku Solver
+# SudoBot
 
-**Let the Bot Do the Logic** 🤖
+A sudoku solver that actually works — scan a puzzle from your phone, let the bot solve it, or work through it yourself with hints and validation along the way.
 
-An intelligent Sudoku solver with real-time image recognition, cloud sync, and advanced game features.
-
-## ✨ Features
-
-- 📸 **Image Recognition** - Scan Sudoku puzzles from printed photos or digital images
-- 🎮 **Interactive Game** - Solve puzzles manually with pencil marks, hints, and validation
-- 🤖 **Auto Solver** - Watch the AI solve puzzles step-by-step or instantly
-- 📊 **Analytics Dashboard** - Track stats, win rates, and times (Firebase sync)
-- 🔐 **Cloud Sync** - Save progress across devices with Firebase Authentication
-- 🎨 **Dark Mode** - Sleek dark/light theme toggle
-- ⏱️ **Performance Tracking** - Timer, mistake counter, and difficulty levels
+Built with React + TypeScript, Firebase for cloud sync, and Tesseract.js for image recognition.
 
 ---
 
-## 📱 Tech Stack
+## What it does
 
-**Frontend:**
-- React 19 + TypeScript
-- Tailwind CSS for styling
-- Vite for blazing fast builds
-- Framer Motion for animations
-
-**Image Processing:**
-- Tesseract.js for OCR (reads Sudoku numbers)
-- Canvas API for advanced image manipulation
-- Sobel Edge Detection for grid line detection
-
-**Backend & Database:**
-- Firebase Authentication (Email/Password)
-- Firestore for user stats persistence
+- **Scan puzzles** — point your camera at a printed or digital sudoku and it reads the numbers automatically
+- **Solve it for you** — watch the AI work through it step by step, or just get the answer instantly
+- **Play manually** — pencil marks, hints, mistake tracking, the full experience
+- **Sync across devices** — progress and stats saved to Firebase if you're logged in
+- **Track your game** — times, win rates, difficulty history, all in a dashboard
+- **Dark mode** — because of course
 
 ---
 
-## 🖼️ Image Processing - Compatibility
+## Tech stack
 
-### ✅ **IMAGE 1: WORKING** ✓
-
-**Characteristics:**
-- White/light background
-- Black grid lines
-- High contrast
-- Clear printed numbers
-- Straight angle
-
-**Status:** Fully supported and tested ✅
-
-**Example:** Image with white cells and black grid lines
+| Layer | What's used |
+|---|---|
+| UI | React 19, TypeScript, Tailwind CSS, Framer Motion |
+| Build | Vite |
+| Image processing | Tesseract.js (OCR), Canvas API, Sobel edge detection |
+| Auth & database | Firebase Authentication, Firestore |
 
 ---
 
-### ❌ **IMAGE 2: NOT WORKING** ✗
+## Getting started
 
-**Characteristics:**
-- Light blue/cyan background
-- Colored cell backgrounds
-- Mixed contrast
-- Darker grid lines
-
-**Status:** Currently not supported ❌
-
-**Why it fails:**
-The image processing pipeline uses **grayscale conversion** with the standard luminosity formula:
-```
-gray = 0.299 * Red + 0.587 * Green + 0.114 * Blue
-```
-
-**Problem with Image 2:**
-- Blue value (0, 0, 255) converts to only **~29/255** brightness (very dark)
-- All blue cells become nearly black
-- Edge detection can't distinguish blue cells from grid lines
-- Sobel edge detection fails because everything appears as edges
-
----
-
-## 🔧 Current Image Processing Pipeline
-
-```
-INPUT IMAGE
-    ↓
-[1] Image Resize (cap at 2000px)
-    ↓
-[2] Grayscale Conversion (luminosity formula)
-    ↓
-[3] Sobel Edge Detection
-    ↓
-[4] Adaptive Thresholding (30% of max edge)
-    ↓
-[5] Line Detection (horizontal & vertical)
-    ↓
-[6] Line Clustering (with adaptive spacing)
-    ↓
-[7] Grid Boundary Extraction (10 lines = 9x9 cells)
-    ↓
-[8] Cell Extraction & Preprocessing
-    ↓
-[9] OCR with Tesseract.js
-    ↓
-[10] Puzzle Validation (17+ clues, solvability)
-    ↓
-SUDOKU GRID LOADED ✓
-```
-
----
-
-## 📊 Recommended Image Formats
-
-| Feature | ✅ Works | ❌ Doesn't Work |
-|---------|---------|-----------------|
-| **White background** | Yes | Colored backgrounds |
-| **Black grid lines** | Yes | Light/thin lines |
-| **Printed numbers** | Yes | Handwritten |
-| **High contrast** | Yes | Low contrast |
-| **Straight angle** | Yes | Rotated/skewed |
-| **Clear grid** | Yes | Blurry lines |
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+
-
-### Installation
+You need Node.js 18 or higher.
 
 ```bash
-# Install dependencies
 npm install
-
-# Set up Firebase (optional for cloud features)
-# Add your credentials in src/firebase.ts
-
-# Start dev server
 npm run dev
 ```
 
-Visit `http://localhost:3000`
+App runs at `http://localhost:3000`.
+
+Firebase is optional — the game works without it, but you won't get cloud sync or stats persistence. If you want those, add your credentials to `src/firebase.ts`.
 
 ---
 
-## 📁 Project Structure
+## Image scanning — what works and what doesn't
+
+The scanner works well with clean, high-contrast images. Here's the honest picture:
+
+**Works reliably**
+- White or light background with dark grid lines
+- Printed numbers (not handwritten)
+- Straight-on angle, no skew
+- Good lighting, no blur
+
+**Doesn't work yet**
+- Colored cell backgrounds (blue, cyan, etc.) — the grayscale conversion turns them dark and confuses the edge detector
+- Handwritten numbers — OCR accuracy drops a lot
+- Rotated or skewed images
+- Very thin grid lines or low contrast
+
+The pipeline goes: resize → grayscale → Sobel edge detection → line detection → cell extraction → OCR → validation. The weak point right now is anything that throws off the edge detection step.
+
+---
+
+## Project structure
 
 ```
 src/
 ├── pages/
-│   ├── GamePage.tsx        # Main game with image processing
-│   ├── DashboardPage.tsx   # User stats & analytics
-│   ├── LandingPage.tsx     # Landing page
-│   └── LoginPage.tsx       # Firebase authentication
+│   ├── GamePage.tsx        # main game, image processing lives here
+│   ├── DashboardPage.tsx   # stats and analytics
+│   ├── LandingPage.tsx
+│   └── LoginPage.tsx
 ├── utils/
-│   └── statsManager.ts     # Firestore integration
-├── App.tsx                 # Router
-├── firebase.ts             # Firebase config
-└── main.tsx               # Entry point
+│   └── statsManager.ts     # Firestore read/write
+├── App.tsx
+├── firebase.ts
+└── main.tsx
 ```
 
 ---
 
-## 🐛 Known Limitations
+## Known issues
 
-| Limitation | Status | Notes |
-|-----------|--------|-------|
-| Colored backgrounds | ❌ Not supported | Blue/cyan cells detected as edges |
-| Handwritten numbers | ⚠️ Low accuracy | OCR works better with printed text |
-| Rotated/skewed images | ❌ May fail | Image should be straight |
-| Low contrast images | ⚠️ Unreliable | Needs clear distinction between cells & grid |
-| Thin grid lines | ⚠️ May miss | Thicker lines work better |
+- Colored backgrounds aren't supported yet — on the roadmap
+- OCR sometimes misses numbers on lower-quality photos, so the minimum clue threshold is set to 8 to be forgiving
+- Skewed or rotated images will likely fail grid detection
+
+If you scan a puzzle and it doesn't load, try a cleaner photo with better lighting and make sure the grid takes up most of the frame.
 
 ---
-
-## ✅ Validation Rules
-
-- **Minimum clues required:** 8 (lenient to account for OCR misses)
-- **Uniqueness:** Not strictly enforced (multiple solutions OK)
-- **Solvability:** Must have at least one valid solution
-- **No conflicts:** Starting numbers can't violate Sudoku rules
-
----
-
-## 📝 License
+## Live Application
+🔗 `sudo-bot-kappa.vercel.app`
+## License
 
 MIT
