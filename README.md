@@ -1,6 +1,8 @@
 # SudoBot
 
-A sudoku solver that actually works — scan a puzzle from your phone, let the bot solve it, or work through it yourself with hints and validation along the way.
+Scan a sudoku puzzle, solve it instantly, or challenge yourself with hints and real-time validation — all in the browser.
+
+Live at **[sudo-bot-kappa.vercel.app](https://sudo-bot-kappa.vercel.app)**
 
 Built with React + TypeScript, Firebase for cloud sync, and Tesseract.js for image recognition.
 
@@ -8,7 +10,7 @@ Built with React + TypeScript, Firebase for cloud sync, and Tesseract.js for ima
 
 ## What it does
 
-- **Scan puzzles** — point your camera at a printed or digital sudoku and it reads the numbers automatically
+- **Scan puzzles** — photograph a printed or digital sudoku and it reads the numbers automatically
 - **Solve it for you** — watch the AI work through it step by step, or just get the answer instantly
 - **Play manually** — pencil marks, hints, mistake tracking, the full experience
 - **Sync across devices** — progress and stats saved to Firebase if you're logged in
@@ -90,8 +92,6 @@ src/
 If you scan a puzzle and it doesn't load, try a cleaner photo with better lighting and make sure the grid takes up most of the frame.
 
 ---
-## Live Application
-🔗 [sudo-bot-kappa.vercel.app](https://sudo-bot-kappa.vercel.app)
 
 ## License
 
