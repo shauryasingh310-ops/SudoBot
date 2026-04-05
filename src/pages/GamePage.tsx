@@ -264,6 +264,7 @@ export default function GamePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [usedAITools, setUsedAITools] = useState(false); // Track if solve/watch buttons were used
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const solveAbortRef = useRef(false);
@@ -382,6 +383,7 @@ export default function GamePage() {
       setUploadedImage(null);
       setCelebrationDismissed(false);
       setGameCompleted(false);
+      setUsedAITools(false); // Reset AI flag on size change
     }
   }, [sudokuSize]);
 
@@ -426,12 +428,18 @@ export default function GamePage() {
     if (validateCompletedGrid(newGrid, sudokuSize)) {
       console.log(`✅ Grid solved! Size: ${sudokuSize}×${sudokuSize}, Timer: ${timer}s, Mistakes: ${mistakes}`);
       console.log('Grid state after validation passed:', newGrid);
+      console.log('📊 userId:', userId, 'timer:', timer, 'mistakes:', mistakes);
       setIsTimerActive(false);
       setGameCompleted(true);
       
-      // Save stats to Firestore if user is logged in
-      if (userId) {
+      // Save stats to Firestore only if user solved it manually (no AI tools used)
+      if (userId && !usedAITools) {
+        console.log('🔥 Calling updateUserStats with:', { userId, timer, mistakes });
         updateUserStats(userId, timer, true, mistakes);
+      } else if (usedAITools) {
+        console.warn('⚠️ AI tools were used - stats NOT saved to dashboard');
+      } else {
+        console.warn('⚠️ No userId available, cannot save game stats');
       }
     } else {
       const filledCount = newGrid.flat().filter((c: number) => c !== 0).length;
@@ -510,9 +518,12 @@ export default function GamePage() {
     setError(null);
     setCelebrationDismissed(false);
     setMistakes(0);
+    setUsedAITools(false); // Reset AI flag for new game
+    setGameCompleted(false);
   };
 
   const solveInstantly = () => {
+    setUsedAITools(true); // Mark that AI was used
     // Make a deep copy to avoid modifying the current grid
     const workingGrid = grid.map((row: number[]) => [...row]);
     
@@ -539,10 +550,8 @@ export default function GamePage() {
         if (validateCompletedGrid(solveGrid, sudokuSize)) {
           console.log(`✅ Auto-solved grid is valid! Setting gameCompleted = true`);
           setGameCompleted(true);
-          
-          if (userId) {
-            updateUserStats(userId, 0, true, 0);
-          }
+          console.log('🤖 AI-solved game - stats NOT saved to dashboard');
+          // Don't save stats for AI-solved games
         } else {
           console.error(`❌ Auto-solved grid failed validation for ${sudokuSize}×${sudokuSize}`);
         }
@@ -562,6 +571,7 @@ export default function GamePage() {
       return;
     }
 
+    setUsedAITools(true); // Mark that AI was used
     setTimer(0);
     setIsTimerActive(true);
     setIsSolving(true);
@@ -618,10 +628,8 @@ export default function GamePage() {
           if (validateCompletedGrid(workingGrid, initialSize)) {
             console.log('✅ Animated solved grid is valid! Setting gameCompleted = true');
             setGameCompleted(true);
-            
-            if (userId) {
-              updateUserStats(userId, timer, true, 0);
-            }
+            console.log('🤖 Watch-solved game - stats NOT saved to dashboard');
+            // Don't save stats for AI-solved (watch) games
           } else {
             console.error(`❌ Animated solved grid failed validation for ${initialSize}×${initialSize}`);
           }

@@ -27,10 +27,18 @@ export interface RatingHistory {
   rating: number;
 }
 
-// Initialize default stats for a new user
+// Initialize default stats for a new user (only if they don't exist)
 export const initializeUserStats = async (uid: string, email: string) => {
   try {
     const userRef = doc(db, 'users', uid);
+    const userDoc = await getDoc(userRef);
+    
+    // If user already has stats, don't overwrite them!
+    if (userDoc.exists() && userDoc.data().stats && userDoc.data().stats.totalGames > 0) {
+      console.log('✅ Stats already exist for user, skipping initialization');
+      return;
+    }
+
     const defaultStats: UserStats = {
       rating: 1600,
       totalGames: 0,
@@ -40,7 +48,7 @@ export const initializeUserStats = async (uid: string, email: string) => {
       accuracy: 0,
       avgTime: 0,
       bestStreak: 0,
-      lastPlayedDate: new Date().toISOString()
+      lastPlayedDate: new Date(0).toISOString() // Set to epoch so first game triggers streak
     };
 
     const data = {
@@ -50,6 +58,7 @@ export const initializeUserStats = async (uid: string, email: string) => {
     };
 
     await setDoc(userRef, data, { merge: true });
+    console.log('✅ User stats initialized');
     
     // Also cache locally
     localStorage.setItem(`user-stats-${uid}`, JSON.stringify(defaultStats));
@@ -66,7 +75,7 @@ export const initializeUserStats = async (uid: string, email: string) => {
       accuracy: 0,
       avgTime: 0,
       bestStreak: 0,
-      lastPlayedDate: new Date().toISOString()
+      lastPlayedDate: new Date(0).toISOString()
     };
     localStorage.setItem(`user-stats-${uid}`, JSON.stringify(defaultStats));
   }
@@ -81,15 +90,19 @@ export const updateUserStats = async (
   totalCells: number = 81
 ) => {
   try {
+    console.log('🎯 Starting updateUserStats for uid:', uid);
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
 
     if (!userDoc.exists()) {
+      console.log('⚠️ User doc does not exist, initializing...');
       await initializeUserStats(uid, '');
       return;
     }
 
     const currentData = userDoc.data();
+    console.log('📖 Current Firestore data:', currentData);
+    
     const currentStats: UserStats = currentData.stats || {
       rating: 1600,
       totalGames: 0,
@@ -162,16 +175,29 @@ export const updateUserStats = async (
       lastPlayedDate: new Date().toISOString()
     };
 
-    await updateDoc(userRef, {
-      'stats': updatedStats,
-      'lastUpdated': new Date().toISOString()
-    });
-    console.log('✅ User stats updated in Firestore:', updatedStats);
+    console.log('📝 Calculated updated stats:', updatedStats);
+    
+    try {
+      await updateDoc(userRef, {
+        'stats': updatedStats,
+        'lastUpdated': new Date().toISOString()
+      });
+      console.log('✅ User stats updated in Firestore:', updatedStats);
+    } catch (firestoreError: any) {
+      console.error('❌ FIRESTORE UPDATE FAILED:', firestoreError.message, firestoreError.code);
+      throw firestoreError;
+    }
 
     // Store game record in sub-collection for history tracking
     try {
+      // Use local date instead of UTC to match user's timezone
+      const today = new Date();
+      const localDateStr = today.getFullYear() + '-' + 
+        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(today.getDate()).padStart(2, '0');
+
       const gameRecord: GameRecord = {
-        date: new Date().toISOString().split('T')[0],
+        date: localDateStr,
         gameTime,
         isSolved,
         mistakes,
@@ -184,7 +210,7 @@ export const updateUserStats = async (
       await setDoc(doc(gamesRef, gameDocId), gameRecord);
       console.log('✅ Game record saved to Firestore:', { gameDocId, gameRecord });
     } catch (err: any) {
-      console.error('❌ Error storing game record:', err);
+      console.error('❌ Error storing game record:', err.message || err);
     }
 
     // Cache locally
@@ -192,7 +218,9 @@ export const updateUserStats = async (
 
     return updatedStats;
   } catch (error: any) {
-    console.error('Error updating user stats:', error);
+    console.error('❌ Error updating user stats:', error.message || error);
+    console.error('Full error object:', error);
+    console.error('Error code:', error.code);
     
     // Return null if offline or error
     return null;
@@ -206,21 +234,24 @@ export const fetchUserStats = async (uid: string): Promise<UserStats | null> => 
     const userDoc = await getDoc(userRef);
 
     if (userDoc.exists() && userDoc.data().stats) {
-      // Cache the fetched data locally
-      localStorage.setItem(`user-stats-${uid}`, JSON.stringify(userDoc.data().stats));
-      return userDoc.data().stats as UserStats;
+      const freshStats = userDoc.data().stats as UserStats;
+      console.log('✅ Fresh stats from Firestore:', freshStats);
+      // Always update localStorage with latest Firestore data
+      localStorage.setItem(`user-stats-${uid}`, JSON.stringify(freshStats));
+      return freshStats;
     }
     
     // If no cloud data, try localStorage
     const cached = localStorage.getItem(`user-stats-${uid}`);
+    console.log('📦 No Firestore data, using cached:', cached);
     return cached ? JSON.parse(cached) : null;
   } catch (error: any) {
-    console.error('Error fetching user stats:', error);
+    console.error('❌ Error fetching user stats from Firestore:', error.message);
     
-    // Always fallback to localStorage on any error (blocked, offline, etc)
+    // Fallback to localStorage on error
     const cached = localStorage.getItem(`user-stats-${uid}`);
     if (cached) {
-      console.log('Using cached stats from localStorage');
+      console.log('📦 Firestore failed, using cached stats from localStorage');
       return JSON.parse(cached);
     }
     
@@ -234,11 +265,14 @@ export const fetchGameHistoryForHeatmap = async (uid: string): Promise<Record<st
     const today = new Date();
     const data: Record<string, number> = {};
 
-    // Initialize all dates to 0 (full year)
+    // Initialize all dates to 0 (full year) using LOCAL timezone
     for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const key = date.toISOString().split('T')[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const key = `${year}-${month}-${day}`;
       data[key] = 0;
     }
 
@@ -292,7 +326,10 @@ export const fetchGameHistoryForHeatmap = async (uid: string): Promise<Record<st
     for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const key = date.toISOString().split('T')[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const key = `${year}-${month}-${day}`;
       data[key] = 0;
     }
     return data;

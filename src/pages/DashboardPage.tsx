@@ -82,63 +82,78 @@ export default function DashboardPage() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!initRef.current) {
-      initRef.current = true;
+    if (!userId) return;
 
-      // Load real data and create visualizations
-      const loadData = async () => {
-        console.log('📊 loadData function called');
-        if (!userId) {
-          console.log('❌ No userId available');
-          return;
+    // Load real data and create visualizations
+    const loadData = async () => {
+      console.log('📊 loadData function called');
+      try {
+        console.log('📥 Fetching game history for userId:', userId);
+        const gameHistory = await fetchGameHistoryForHeatmap(userId);
+        console.log('✅ Game history fetched:', gameHistory);
+        
+        const ratingHistory = await fetchRatingHistoryForChart(userId);
+        console.log('✅ Rating history fetched:', ratingHistory);
+
+        // Fetch fresh stats
+        const userStats = await fetchUserStats(userId);
+        if (userStats) {
+          console.log('✅ Fresh user stats fetched:', userStats);
+          setStats(userStats);
         }
 
-        try {
-          console.log('📥 Fetching game history for userId:', userId);
-          const gameHistory = await fetchGameHistoryForHeatmap(userId);
-          console.log('✅ Game history fetched:', gameHistory);
-          
-          const ratingHistory = await fetchRatingHistoryForChart(userId);
-          console.log('✅ Rating history fetched:', ratingHistory);
+        // Transform game history to heatmap format
+        const transformedData: Record<string, any> = {};
+        Object.entries(gameHistory).forEach(([date, count]) => {
+          if ((count as number) > 0) {
+            transformedData[date] = { count: count as number };
+          }
+        });
+        console.log('🎨 Transformed heatmap data:', transformedData);
+        setHeatmapData(transformedData);
 
-          // Transform game history to heatmap format
-          const transformedData: Record<string, any> = {};
-          Object.entries(gameHistory).forEach(([date, count]) => {
-            if ((count as number) > 0) {
-              transformedData[date] = { count: count as number };
-            }
-          });
-          console.log('🎨 Transformed heatmap data:', transformedData);
-          setHeatmapData(transformedData);
-
-          // Create chart using setTimeout to ensure DOM is ready
-          setTimeout(() => {
-            createProgressChart(ratingHistory);
-          }, 0);
-        } catch (err) {
-          console.error('❌ Error loading dashboard data:', err);
-          // Fallback to empty heatmap
-          setHeatmapData({});
-          setTimeout(() => {
-            createProgressChart([]);
-          }, 0);
-        }
-      };
-
-      if (userId) {
-        console.log('🎯 userId available, calling loadData');
-        loadData();
-      } else {
-        console.log('⏳ Waiting for userId...');
-      }
-    }
-
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
+        // Create chart using setTimeout to ensure DOM is ready
+        setTimeout(() => {
+          createProgressChart(ratingHistory);
+        }, 0);
+      } catch (err) {
+        console.error('❌ Error loading dashboard data:', err);
+        // Fallback to empty heatmap
+        setHeatmapData({});
+        setTimeout(() => {
+          createProgressChart([]);
+        }, 0);
       }
     };
+
+    if (initRef.current === false) {
+      initRef.current = true;
+      loadData();
+    }
+  }, [userId]);
+
+  // Force refetch stats when page visibility changes
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('👁️ Page visible, refetching stats...');
+        const freshStats = await fetchUserStats(userId);
+        if (freshStats) {
+          console.log('📊 Stats updated after visibility change:', freshStats);
+          console.log('  Rating:', freshStats.rating);
+          console.log('  Accuracy:', freshStats.accuracy);
+          console.log('  Avg Time:', freshStats.avgTime);
+          console.log('  Best Streak:', freshStats.bestStreak);
+          console.log('  Current Streak:', freshStats.currentStreak);
+          setStats(freshStats);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userId]);
 
   // Recreate chart when dark mode changes (synced from GamePage)
