@@ -100,6 +100,49 @@ const findEmpty = (grid: Grid, size: SudokuSize = 9): [number, number] | null =>
   return null;
 };
 
+const validateCompletedGrid = (grid: Grid, size: SudokuSize = 9): boolean => {
+  // Check if grid is completely filled
+  if (grid.some((row: number[]) => row.some((cell: number) => cell === 0))) {
+    return false;
+  }
+  
+  // Validate all cells follow sudoku rules (without mutating grid)
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const num = grid[r][c];
+      
+      // Check row
+      for (let x = 0; x < size; x++) {
+        if (x !== c && grid[r][x] === num) return false;
+      }
+      
+      // Check column
+      for (let x = 0; x < size; x++) {
+        if (x !== r && grid[x][c] === num) return false;
+      }
+      
+      // Check box
+      const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+        4: { rows: 2, cols: 2 }, 
+        6: { rows: 2, cols: 3 }, 
+        9: { rows: 3, cols: 3 } 
+      };
+      const { rows: boxRows, cols: boxCols } = boxSizeMap[size];
+      const startRow = r - (r % boxRows);
+      const startCol = c - (c % boxCols);
+      
+      for (let i = 0; i < boxRows; i++) {
+        for (let j = 0; j < boxCols; j++) {
+          const checkR = i + startRow;
+          const checkC = j + startCol;
+          if ((checkR !== r || checkC !== c) && grid[checkR][checkC] === num) return false;
+        }
+      }
+    }
+  }
+  return true;
+};
+
 const generatePuzzle = (difficulty: Difficulty, size: SudokuSize): { puzzle: Grid; solution: Grid } => {
   const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
     4: { rows: 2, cols: 2 }, 
@@ -1417,7 +1460,7 @@ export default function GamePage() {
 
       {/* Celebration Overlay */}
       <AnimatePresence>
-        {remainingCells === 0 && !celebrationDismissed && (
+        {remainingCells === 0 && validateCompletedGrid(grid, sudokuSize) && !celebrationDismissed && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
