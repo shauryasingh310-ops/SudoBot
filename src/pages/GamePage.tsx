@@ -101,33 +101,50 @@ const findEmpty = (grid: Grid, size: SudokuSize = 9): [number, number] | null =>
 };
 
 const validateCompletedGrid = (grid: Grid, size: SudokuSize = 9): boolean => {
-  // Check if grid is completely filled
-  if (grid.some((row: number[]) => row.some((cell: number) => cell === 0))) {
+  // Guard: Check if grid exists and has correct structure
+  if (!grid || grid.length !== size) {
     return false;
   }
   
-  // Validate all cells follow sudoku rules (without mutating grid)
+  for (let r = 0; r < size; r++) {
+    if (!grid[r] || grid[r].length !== size) {
+      return false;
+    }
+  }
+  
+  // Check if grid is completely filled
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (!grid[r][c] || grid[r][c] === 0) {
+        return false;
+      }
+    }
+  }
+  
+  // Validate all cells follow sudoku rules
+  const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
+    4: { rows: 2, cols: 2 }, 
+    6: { rows: 2, cols: 3 }, 
+    9: { rows: 3, cols: 3 } 
+  };
+  const { rows: boxRows, cols: boxCols } = boxSizeMap[size];
+  
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
       const num = grid[r][c];
+      if (num < 1 || num > size) return false;
       
-      // Check row
+      // Check row for duplicates
       for (let x = 0; x < size; x++) {
-        if (x !== c && grid[r][x] === num) return false;
+        if (x !== c && grid[r][x] === num) return false;  
       }
       
-      // Check column
+      // Check column for duplicates
       for (let x = 0; x < size; x++) {
         if (x !== r && grid[x][c] === num) return false;
       }
       
-      // Check box
-      const boxSizeMap: Record<SudokuSize, { rows: number; cols: number }> = { 
-        4: { rows: 2, cols: 2 }, 
-        6: { rows: 2, cols: 3 }, 
-        9: { rows: 3, cols: 3 } 
-      };
-      const { rows: boxRows, cols: boxCols } = boxSizeMap[size];
+      // Check box for duplicates
       const startRow = r - (r % boxRows);
       const startCol = c - (c % boxCols);
       
@@ -135,7 +152,11 @@ const validateCompletedGrid = (grid: Grid, size: SudokuSize = 9): boolean => {
         for (let j = 0; j < boxCols; j++) {
           const checkR = i + startRow;
           const checkC = j + startCol;
-          if ((checkR !== r || checkC !== c) && grid[checkR][checkC] === num) return false;
+          if (checkR >= 0 && checkR < size && checkC >= 0 && checkC < size) {
+            if ((checkR !== r || checkC !== c) && grid[checkR][checkC] === num) {
+              return false;
+            }
+          }
         }
       }
     }
@@ -403,17 +424,17 @@ export default function GamePage() {
 
     // Check if solved
     if (newGrid.every((row: number[]) => row.every((cell: number) => cell !== 0))) {
-      const flat = newGrid.flat();
       const isAllValid = newGrid.every((row: number[], ri: number) => 
         row.every((cell: number, ci: number) => {
           const temp = newGrid[ri][ci];
           newGrid[ri][ci] = 0;
-          const v = isValid(newGrid, ri, ci, temp);
+          const v = isValid(newGrid, ri, ci, temp, sudokuSize);
           newGrid[ri][ci] = temp;
           return v;
         })
       );
       if (isAllValid) {
+        console.log(`✅ Grid solved! Size: ${sudokuSize}×${sudokuSize}`);
         setIsTimerActive(false);
         setGameCompleted(true);
         
@@ -421,13 +442,6 @@ export default function GamePage() {
         if (userId) {
           updateUserStats(userId, timer, true, mistakes);
         }
-        
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#ffffff', '#cccccc', '#999999']
-        });
       }
     }
   }, [grid, initialGrid, pencilMarks, isPencilMode, userId, timer]);
@@ -1069,6 +1083,23 @@ export default function GamePage() {
     return grid.flat().filter((c: number) => c === 0).length;
   }, [grid]);
 
+  // Trigger confetti and stop timer when puzzle is solved
+  useEffect(() => {
+    if (gameCompleted && remainingCells === 0) {
+      console.log('🎉 Puzzle solved! Confetti!');
+      setIsTimerActive(false);
+      setCelebrationDismissed(false);
+      
+      // Trigger confetti
+      confetti({
+        particleCount: 200,
+        spread: 90,
+        origin: { y: 0.5 },
+        colors: ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa']
+      });
+    }
+  }, [gameCompleted, remainingCells]);
+
   // --- Render ---
 
   return (
@@ -1460,7 +1491,7 @@ export default function GamePage() {
 
       {/* Celebration Overlay */}
       <AnimatePresence>
-        {remainingCells === 0 && validateCompletedGrid(grid, sudokuSize) && !celebrationDismissed && (
+        {remainingCells === 0 && gameCompleted && !celebrationDismissed && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
