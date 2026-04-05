@@ -4,7 +4,7 @@ import { LogOut, Home, Edit3, X, Save } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, LineController, Filler } from 'chart.js';
-import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats, fetchUserProfile, updateUserProfile, UserProfile } from '../utils/statsManager';
+import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats, fetchUserProfile, updateUserProfile, UserProfile, uploadProfilePhoto } from '../utils/statsManager';
 import { HeatmapGrid } from '../components/HeatmapGrid';
 import { HeatmapLegend } from '../components/HeatmapLegend';
 
@@ -40,6 +40,9 @@ export default function DashboardPage() {
     description: '',
     photoURL: ''
   });
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoPreviewURL, setPhotoPreviewURL] = useState<string>('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [heatmapData, setHeatmapData] = useState<Record<string, any>>({});
   const chartRef = useRef<Chart | null>(null);
   const initRef = useRef(false);
@@ -274,14 +277,31 @@ export default function DashboardPage() {
   const handleSaveProfile = async () => {
     if (!userId) return;
 
-    const success = await updateUserProfile(userId, editingProfile);
+    setIsSavingProfile(true);
+    let profileToSave = { ...editingProfile };
+
+    // Upload photo if selected
+    if (selectedPhotoFile) {
+      console.log('📤 Uploading photo...');
+      const photoURL = await uploadProfilePhoto(userId, selectedPhotoFile);
+      if (photoURL) {
+        profileToSave.photoURL = photoURL;
+      }
+    }
+
+    // Save profile to Firestore
+    const success = await updateUserProfile(userId, profileToSave);
     if (success) {
-      setProfile(editingProfile);
+      setProfile(profileToSave);
       setShowProfileModal(false);
+      setSelectedPhotoFile(null);
+      setPhotoPreviewURL('');
       console.log('✅ Profile saved successfully');
     } else {
       console.error('❌ Failed to save profile');
     }
+    
+    setIsSavingProfile(false);
   };
 
   const handleLogout = async () => {
@@ -451,21 +471,40 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Photo URL */}
+                {/* Photo Upload */}
                 <div>
                   <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
-                    Photo URL
+                    Profile Photo
                   </label>
-                  <input
-                    type="text"
-                    placeholder="https://example.com/photo.jpg"
-                    value={editingProfile.photoURL || ''}
-                    onChange={(e) => setEditingProfile({ ...editingProfile, photoURL: e.target.value })}
-                    className={`w-full px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                  />
-                  {editingProfile.photoURL && (
-                    <img src={editingProfile.photoURL} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover" />
-                  )}
+                  <div className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${isDarkMode ? 'border-white/20 hover:border-indigo-500/50 hover:bg-indigo-500/5' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50'}`}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedPhotoFile(file);
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setPhotoPreviewURL(event.target?.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      id="photo-upload"
+                      className="hidden"
+                    />
+                    <label htmlFor="photo-upload" className="cursor-pointer block">
+                      {photoPreviewURL || profile.photoURL ? (
+                        <img src={photoPreviewURL || profile.photoURL} alt="Preview" className="w-20 h-20 rounded-lg mx-auto object-cover" />
+                      ) : (
+                        <div>
+                          <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>Click to upload image</p>
+                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>JPG, PNG up to 2MB</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
                 </div>
 
                 {/* Name */}
@@ -499,17 +538,23 @@ export default function DashboardPage() {
                 {/* Action Buttons */}
                 <div className="flex gap-3 mt-6">
                   <button
-                    onClick={() => setShowProfileModal(false)}
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      setSelectedPhotoFile(null);
+                      setPhotoPreviewURL('');
+                    }}
+                    disabled={isSavingProfile}
                     className={`flex-1 px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 hover:bg-white/10 text-white' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-900'}`}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveProfile}
-                    className="flex-1 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                    disabled={isSavingProfile}
+                    className="flex-1 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-400 text-white font-semibold transition-all flex items-center justify-center gap-2"
                   >
                     <Save size={18} />
-                    Save
+                    {isSavingProfile ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>

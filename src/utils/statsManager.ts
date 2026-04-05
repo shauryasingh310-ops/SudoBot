@@ -1,5 +1,7 @@
 import { db } from '../firebase';
 import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs } from 'firebase/firestore';
+import { storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface UserStats {
   rating: number;
@@ -461,5 +463,29 @@ export const updateUserProfile = async (uid: string, profile: UserProfile): Prom
   } catch (error: any) {
     console.error('❌ Error updating user profile:', error.message);
     return false;
+  }
+};
+
+// Upload profile photo to Firebase Storage
+export const uploadProfilePhoto = async (uid: string, file: File): Promise<string | null> => {
+  try {
+    console.log('📤 Uploading profile photo...');
+    
+    // Create a unique filename
+    const timestamp = Date.now();
+    const fileName = `profile-${uid}-${timestamp}`;
+    const storageRef = ref(storage, `profiles/${uid}/${fileName}`);
+    
+    // Upload file
+    await uploadBytes(storageRef, file);
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('✅ Photo uploaded successfully:', downloadURL);
+    
+    return downloadURL;
+  } catch (error: any) {
+    console.error('❌ Error uploading photo:', error.message);
+    return null;
   }
 };
