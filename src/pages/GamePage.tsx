@@ -530,9 +530,22 @@ export default function GamePage() {
       // Current state is valid, now try to solve
       const solveGrid = workingGrid.map((r: number[]) => [...r]);
       if (solveSudoku(solveGrid, sudokuSize)) {
+        console.log(`🤖 Solving sudoku instantly for ${sudokuSize}×${sudokuSize} grid`);
         setGrid(solveGrid);
         setTimer(0);
         setIsTimerActive(false);
+        
+        // Check if solved grid is valid and trigger completion
+        if (validateCompletedGrid(solveGrid, sudokuSize)) {
+          console.log(`✅ Auto-solved grid is valid! Setting gameCompleted = true`);
+          setGameCompleted(true);
+          
+          if (userId) {
+            updateUserStats(userId, 0, true, 0);
+          }
+        } else {
+          console.error(`❌ Auto-solved grid failed validation for ${sudokuSize}×${sudokuSize}`);
+        }
       } else {
         setError("This puzzle is unsolvable!");
       }
@@ -598,7 +611,20 @@ export default function GamePage() {
       // Only update UI if size is still the same
       if (activeSolveSizeRef.current === initialSize) {
         if (solved) {
+          console.log(`✅ Animated solve complete! Grid: ${initialSize}×${initialSize}`);
           setIsTimerActive(false);
+          
+          // Validate the solved grid and mark completion
+          if (validateCompletedGrid(workingGrid, initialSize)) {
+            console.log('✅ Animated solved grid is valid! Setting gameCompleted = true');
+            setGameCompleted(true);
+            
+            if (userId) {
+              updateUserStats(userId, timer, true, 0);
+            }
+          } else {
+            console.error(`❌ Animated solved grid failed validation for ${initialSize}×${initialSize}`);
+          }
         } else if (!solveAbortRef.current) {
           setError("Unsolvable puzzle!");
         }
