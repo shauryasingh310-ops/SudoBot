@@ -1,7 +1,5 @@
 import { db } from '../firebase';
 import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs } from 'firebase/firestore';
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface UserStats {
   rating: number;
@@ -13,12 +11,6 @@ export interface UserStats {
   avgTime: number;
   bestStreak: number;
   lastPlayedDate?: string;
-}
-
-export interface UserProfile {
-  name?: string;
-  description?: string;
-  photoURL?: string;
 }
 
 export interface GameRecord {
@@ -426,66 +418,5 @@ export const fetchRatingHistoryForChart = async (uid: string): Promise<RatingHis
       rating += Math.random() * 20 - 10; // Small random variation
     }
     return result;
-  }
-};
-
-// Fetch user profile
-export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  try {
-    const userRef = doc(db, 'users', uid);
-    const userDoc = await getDoc(userRef);
-
-    if (userDoc.exists() && userDoc.data().profile) {
-      const profile = userDoc.data().profile as UserProfile;
-      console.log('✅ User profile fetched:', profile);
-      return profile;
-    }
-    
-    return null;
-  } catch (error: any) {
-    console.error('Error fetching user profile:', error.message);
-    return null;
-  }
-};
-
-// Update user profile
-export const updateUserProfile = async (uid: string, profile: UserProfile): Promise<boolean> => {
-  try {
-    const userRef = doc(db, 'users', uid);
-    
-    await updateDoc(userRef, {
-      'profile': profile,
-      'lastUpdated': new Date().toISOString()
-    });
-    
-    console.log('✅ User profile updated:', profile);
-    return true;
-  } catch (error: any) {
-    console.error('❌ Error updating user profile:', error.message);
-    return false;
-  }
-};
-
-// Upload profile photo to Firebase Storage
-export const uploadProfilePhoto = async (uid: string, file: File): Promise<string | null> => {
-  try {
-    console.log('📤 Uploading profile photo...');
-    
-    // Create a unique filename
-    const timestamp = Date.now();
-    const fileName = `profile-${uid}-${timestamp}`;
-    const storageRef = ref(storage, `profiles/${uid}/${fileName}`);
-    
-    // Upload file
-    await uploadBytes(storageRef, file);
-    
-    // Get download URL
-    const downloadURL = await getDownloadURL(storageRef);
-    console.log('✅ Photo uploaded successfully:', downloadURL);
-    
-    return downloadURL;
-  } catch (error: any) {
-    console.error('❌ Error uploading photo:', error.message);
-    return null;
   }
 };

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Home, Edit3, X, Save } from 'lucide-react';
+import { LogOut, Home } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, LineController, Filler } from 'chart.js';
-import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats, fetchUserProfile, updateUserProfile, UserProfile, uploadProfilePhoto } from '../utils/statsManager';
+import { fetchUserStats, UserStats, fetchGameHistoryForHeatmap, fetchRatingHistoryForChart, initializeUserStats } from '../utils/statsManager';
 import { HeatmapGrid } from '../components/HeatmapGrid';
 import { HeatmapLegend } from '../components/HeatmapLegend';
 
@@ -29,20 +29,6 @@ export default function DashboardPage() {
     avgTime: 0,
     bestStreak: 0
   });
-  const [profile, setProfile] = useState<UserProfile>({
-    name: '',
-    description: '',
-    photoURL: ''
-  });
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<UserProfile>({
-    name: '',
-    description: '',
-    photoURL: ''
-  });
-  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
-  const [photoPreviewURL, setPhotoPreviewURL] = useState<string>('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [heatmapData, setHeatmapData] = useState<Record<string, any>>({});
   const chartRef = useRef<Chart | null>(null);
   const initRef = useRef(false);
@@ -170,22 +156,6 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userId]);
 
-  // Fetch user profile
-  useEffect(() => {
-    if (!userId) return;
-
-    const loadProfile = async () => {
-      const userProfile = await fetchUserProfile(userId);
-      if (userProfile) {
-        console.log('👤 Profile loaded:', userProfile);
-        setProfile(userProfile);
-        setEditingProfile(userProfile);
-      }
-    };
-
-    loadProfile();
-  }, [userId]);
-
   // Recreate chart when dark mode changes (synced from GamePage)
   useEffect(() => {
     if (initRef.current) {
@@ -274,36 +244,6 @@ export default function DashboardPage() {
     });
   };
 
-  const handleSaveProfile = async () => {
-    if (!userId) return;
-
-    setIsSavingProfile(true);
-    let profileToSave = { ...editingProfile };
-
-    // Upload photo if selected
-    if (selectedPhotoFile) {
-      console.log('📤 Uploading photo...');
-      const photoURL = await uploadProfilePhoto(userId, selectedPhotoFile);
-      if (photoURL) {
-        profileToSave.photoURL = photoURL;
-      }
-    }
-
-    // Save profile to Firestore
-    const success = await updateUserProfile(userId, profileToSave);
-    if (success) {
-      setProfile(profileToSave);
-      setShowProfileModal(false);
-      setSelectedPhotoFile(null);
-      setPhotoPreviewURL('');
-      console.log('✅ Profile saved successfully');
-    } else {
-      console.error('❌ Failed to save profile');
-    }
-    
-    setIsSavingProfile(false);
-  };
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -342,30 +282,6 @@ export default function DashboardPage() {
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Profile Card */}
-          <div className={`border rounded-2xl p-8 transition-all ${isDarkMode ? 'bg-white/4 border-white/10 hover:bg-white/8 hover:border-white/20' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400'}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>Profile</h2>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
-              >
-                <Edit3 size={20} className="text-indigo-400" />
-              </button>
-            </div>
-            <div className="text-center">
-              {profile.photoURL && (
-                <img src={profile.photoURL} alt="Profile" className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-2 border-indigo-400" />
-              )}
-              <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {profile.name || 'No name set'}
-              </h3>
-              <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
-                {profile.description || 'No description yet'}
-              </p>
-            </div>
-          </div>
-
           {/* Intelligence Level Card */}
           <div className={`border rounded-2xl p-8 transition-all ${isDarkMode ? 'bg-white/4 border-white/10 hover:bg-white/8 hover:border-white/20' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400'}`}>
             <h2 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>Sudoku Intelligence Level</h2>
@@ -455,112 +371,6 @@ export default function DashboardPage() {
             <canvas id="progressChart" />
           </div>
         </div>
-
-        {/* Profile Edit Modal */}
-        {showProfileModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className={`w-full max-w-md rounded-2xl p-8 border ${isDarkMode ? 'bg-white/10 border-white/20' : 'bg-white border-slate-200'}`}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Edit Profile</h3>
-                <button
-                  onClick={() => setShowProfileModal(false)}
-                  className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Photo Upload */}
-                <div>
-                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
-                    Profile Photo
-                  </label>
-                  <div className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${isDarkMode ? 'border-white/20 hover:border-indigo-500/50 hover:bg-indigo-500/5' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50'}`}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedPhotoFile(file);
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            setPhotoPreviewURL(event.target?.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      id="photo-upload"
-                      className="hidden"
-                    />
-                    <label htmlFor="photo-upload" className="cursor-pointer block">
-                      {photoPreviewURL || profile.photoURL ? (
-                        <img src={photoPreviewURL || profile.photoURL} alt="Preview" className="w-20 h-20 rounded-lg mx-auto object-cover" />
-                      ) : (
-                        <div>
-                          <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>Click to upload image</p>
-                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>JPG, PNG up to 2MB</p>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Name */}
-                <div>
-                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Your name"
-                    value={editingProfile.name || ''}
-                    onChange={(e) => setEditingProfile({ ...editingProfile, name: e.target.value })}
-                    className={`w-full px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className={`text-sm font-semibold block mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
-                    Description
-                  </label>
-                  <textarea
-                    placeholder="Tell us about yourself"
-                    value={editingProfile.description || ''}
-                    onChange={(e) => setEditingProfile({ ...editingProfile, description: e.target.value })}
-                    rows={4}
-                    className={`w-full px-4 py-2 rounded-lg border transition-all resize-none ${isDarkMode ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowProfileModal(false);
-                      setSelectedPhotoFile(null);
-                      setPhotoPreviewURL('');
-                    }}
-                    disabled={isSavingProfile}
-                    className={`flex-1 px-4 py-2 rounded-lg border transition-all ${isDarkMode ? 'bg-white/5 border-white/20 hover:bg-white/10 text-white' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-900'}`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={isSavingProfile}
-                    className="flex-1 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-400 text-white font-semibold transition-all flex items-center justify-center gap-2"
-                  >
-                    <Save size={18} />
-                    {isSavingProfile ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
