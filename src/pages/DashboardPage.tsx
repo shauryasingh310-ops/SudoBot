@@ -68,6 +68,7 @@ export default function DashboardPage() {
         if (userStats) {
           setStats(userStats);
         }
+      }
     });
 
     return unsubscribe;
