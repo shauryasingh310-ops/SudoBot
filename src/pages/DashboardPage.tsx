@@ -44,38 +44,30 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    console.log('🔐 Dashboard auth effect running');
     const email = localStorage.getItem('user-email');
     if (!email) {
-      console.log('❌ No user email in localStorage, redirecting to login');
       navigate('/login');
       return;
     }
-    console.log('✅ User email found:', email);
     setUserEmail(email);
 
     // Get current user ID from auth
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        console.log('✅ Auth user found:', user.uid);
         setUserId(user.uid);
         
         // Ensure user stats are initialized
         if (user.email) {
-          await initializeUserStats(user.uid, user.email).catch(err => {
-            console.log('Stats already initialized or error:', err);
+          await initializeUserStats(user.uid, user.email).catch(() => {
+            // Stats initialization failed or already exists
           });
         }
         
         // Fetch user stats from Firestore or localStorage
         const userStats = await fetchUserStats(user.uid);
         if (userStats) {
-          console.log('✅ User stats fetched:', userStats);
           setStats(userStats);
         }
-      } else {
-        console.log('❌ No auth user found');
-      }
     });
 
     return unsubscribe;
@@ -117,7 +109,6 @@ export default function DashboardPage() {
           createProgressChart(ratingHistory);
         }, 0);
       } catch (err) {
-        console.error('❌ Error loading dashboard data:', err);
         // Fallback to empty heatmap
         setHeatmapData({});
         setTimeout(() => {
@@ -138,15 +129,8 @@ export default function DashboardPage() {
 
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log('👁️ Page visible, refetching stats...');
         const freshStats = await fetchUserStats(userId);
         if (freshStats) {
-          console.log('📊 Stats updated after visibility change:', freshStats);
-          console.log('  Rating:', freshStats.rating);
-          console.log('  Accuracy:', freshStats.accuracy);
-          console.log('  Avg Time:', freshStats.avgTime);
-          console.log('  Best Streak:', freshStats.bestStreak);
-          console.log('  Current Streak:', freshStats.currentStreak);
           setStats(freshStats);
         }
       }
